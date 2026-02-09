@@ -1,0 +1,71 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/app/Dockerfile
+      args:
+        VITE_APP_NAME: DanceWave
+        VITE_REVERB_APP_KEY: dancewavekey
+        VITE_REVERB_HOST: localhost
+        VITE_REVERB_PORT: ${REVERB_EXTERNAL_PORT:-18080}
+        VITE_REVERB_SCHEME: http
+    container_name: dancewave_app
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8000}:8000"
+      - "${REVERB_EXTERNAL_PORT:-18080}:8080"
+    environment:
+      APP_NAME: DanceWave
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_URL: http://localhost:8000
+      APP_KEY: base64:9zOXmFfY2b15WUnu5mw7HfLddN8Y98PJrT3xQf6YB58=
+
+      DB_CONNECTION: sqlite
+      DB_DATABASE: /var/www/html/storage/database.sqlite
+      SESSION_DRIVER: database
+      CACHE_STORE: database
+      QUEUE_CONNECTION: database
+      BROADCAST_CONNECTION: reverb
+
+      REVERB_APP_ID: "304945"
+      REVERB_APP_KEY: dancewavekey
+      REVERB_APP_SECRET: dancewavesecret
+      REVERB_HOST: 127.0.0.1
+      REVERB_PORT: "8080"
+      REVERB_SCHEME: http
+      VITE_REVERB_APP_KEY: dancewavekey
+      VITE_REVERB_HOST: localhost
+      VITE_REVERB_PORT: ${REVERB_EXTERNAL_PORT:-18080}
+      VITE_REVERB_SCHEME: http
+
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-}
+
+      RUN_MIGRATIONS: "true"
+      RUN_SEEDERS: "true"
+      RUN_LEGACY_IMPORT: ${RUN_LEGACY_IMPORT:-false}
+      LEGACY_DB_PATH: /var/www/html/zxc1/diplo/data/app.sqlite
+      LEGACY_MEDIA_PATH: /var/www/html/zxc1/diplo/assets/images
+    volumes:
+      - dancewave_storage:/var/www/html/storage
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/up"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  vite:
+    image: node:22-alpine
+    container_name: dancewave_vite
+    profiles: ["dev"]
+    working_dir: /var/www/html
+    volumes:
+      - ./:/var/www/html
+    ports:
+      - "5173:5173"
+    command: ["sh", "-lc", "npm install && npm run dev -- --host 0.0.0.0 --port 5173"]
+
+volumes:
+  dancewave_storage:

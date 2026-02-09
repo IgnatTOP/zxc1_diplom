@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /diplo/admin/
+Disallow: /diplo/config/
+Disallow: /diplo/data/
+Disallow: /diplo/public/api/
+Disallow: /profile.php
+
+Sitemap: https://dancewave.ru/sitemap.xml

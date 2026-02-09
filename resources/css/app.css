@@ -1,0 +1,194 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    :root {
+        color-scheme: light;
+    }
+
+    * {
+        @apply border-border;
+    }
+
+    body {
+        @apply bg-background font-sans text-foreground antialiased;
+        min-height: 100vh;
+        text-rendering: optimizeLegibility;
+    }
+
+    a {
+        @apply transition-colors;
+    }
+}
+
+@layer components {
+    .page-grid-bg {
+        background-image:
+            radial-gradient(circle at 1px 1px, rgba(125, 184, 213, 0.16) 1px, transparent 0),
+            linear-gradient(135deg, rgba(125, 184, 213, 0.08), transparent 40%);
+        background-size: 28px 28px, 100% 100%;
+    }
+
+    .dw-page-enter {
+        animation: dw-page-enter 0.42s ease-out both;
+    }
+
+    .dw-fade-up {
+        animation: dw-fade-up 0.55s cubic-bezier(0.2, 0.75, 0.2, 1) both;
+        animation-delay: var(--dw-delay, 0ms);
+    }
+
+    .dw-scale-in {
+        animation: dw-scale-in 0.45s ease-out both;
+        animation-delay: var(--dw-delay, 0ms);
+    }
+
+    .dw-stagger > * {
+        animation: dw-fade-up 0.58s cubic-bezier(0.2, 0.75, 0.2, 1) both;
+    }
+
+    .dw-stagger > *:nth-child(1) {
+        animation-delay: 40ms;
+    }
+
+    .dw-stagger > *:nth-child(2) {
+        animation-delay: 90ms;
+    }
+
+    .dw-stagger > *:nth-child(3) {
+        animation-delay: 140ms;
+    }
+
+    .dw-stagger > *:nth-child(4) {
+        animation-delay: 190ms;
+    }
+
+    .dw-stagger > *:nth-child(5) {
+        animation-delay: 240ms;
+    }
+
+    .dw-stagger > *:nth-child(6) {
+        animation-delay: 290ms;
+    }
+
+    .dw-stagger > *:nth-child(7) {
+        animation-delay: 340ms;
+    }
+
+    .dw-stagger > *:nth-child(8) {
+        animation-delay: 390ms;
+    }
+
+    .dw-orb {
+        animation: dw-orb-float 8s ease-in-out infinite;
+    }
+
+    .dw-support-pulse::after {
+        content: '';
+        position: absolute;
+        inset: -8px;
+        border-radius: 9999px;
+        border: 1px solid rgba(125, 184, 213, 0.4);
+        animation: dw-ring 2s ease-out infinite;
+    }
+
+    .dw-nav-loader {
+        background: linear-gradient(
+            90deg,
+            rgba(125, 184, 213, 0.2) 0%,
+            rgba(125, 184, 213, 0.8) 25%,
+            rgba(125, 184, 213, 1) 50%,
+            rgba(125, 184, 213, 0.8) 75%,
+            rgba(125, 184, 213, 0.2) 100%
+        );
+        background-size: 220% 100%;
+        animation: dw-loader 1s linear infinite;
+    }
+
+    .dw-hero-pattern {
+        background-image:
+            radial-gradient(circle at 10% 0%, rgba(125, 184, 213, 0.18), transparent 55%),
+            radial-gradient(circle at 90% 100%, rgba(90, 157, 191, 0.18), transparent 45%);
+    }
+
+    .dw-kicker {
+        @apply inline-flex items-center gap-2 rounded-full border border-brand/40 bg-brand/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-brand-dark;
+    }
+}
+
+@keyframes dw-page-enter {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes dw-fade-up {
+    from {
+        opacity: 0;
+        transform: translateY(22px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes dw-scale-in {
+    from {
+        opacity: 0;
+        transform: scale(0.96);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes dw-loader {
+    0% {
+        background-position: 0% 0%;
+    }
+    100% {
+        background-position: 220% 0%;
+    }
+}
+
+@keyframes dw-ring {
+    0% {
+        opacity: 0.7;
+        transform: scale(0.8);
+    }
+    80% {
+        opacity: 0;
+        transform: scale(1.25);
+    }
+    100% {
+        opacity: 0;
+        transform: scale(1.25);
+    }
+}
+
+@keyframes dw-orb-float {
+    0%,
+    100% {
+        transform: translateY(0) translateX(0);
+    }
+    50% {
+        transform: translateY(-8px) translateX(3px);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .dw-page-enter,
+    .dw-fade-up,
+    .dw-scale-in,
+    .dw-stagger > * {
+        animation: none !important;
+    }
+}
