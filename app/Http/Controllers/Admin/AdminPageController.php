@@ -184,10 +184,7 @@ class AdminPageController extends Controller
         return Inertia::render('Admin/Telegram', [
             'settings' => [
                 'botToken' => $resolved['bot_token'],
-                'webhookSecret' => $resolved['webhook_secret'],
-                'webhookUrl' => TelegramSettings::webhookUrl(),
                 'botTokenSource' => $resolved['bot_token_source'],
-                'webhookSecretSource' => $resolved['webhook_secret_source'],
             ],
             'links' => AdminTelegramLink::query()
                 ->with('user:id,name,email,role')
