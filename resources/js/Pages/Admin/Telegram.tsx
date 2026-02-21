@@ -15,16 +15,12 @@ import {
     Send,
     Settings,
     Trash2,
-    Webhook,
 } from 'lucide-react';
 import { FormEvent, useMemo, useState } from 'react';
 
 type TelegramSettings = {
     botToken: string;
-    webhookSecret: string;
-    webhookUrl: string;
     botTokenSource: 'db' | 'env' | 'none' | string;
-    webhookSecretSource?: 'db' | 'env' | 'none' | string;
 };
 
 type AdminItem = {
@@ -99,7 +95,6 @@ export default function Telegram({ settings, links, admins }: Props) {
                 settings: TelegramSettings;
             }>('/api/v1/admin/settings/telegram', {
                 botToken: config.botToken,
-                webhookSecret: config.webhookSecret,
             });
 
             setConfig(payload.settings);
@@ -111,28 +106,7 @@ export default function Telegram({ settings, links, admins }: Props) {
         }
     };
 
-    const setWebhook = async () => {
-        setNotice(null);
-        setSavingKey('webhook');
 
-        try {
-            const payload = await apiPost<{
-                ok: boolean;
-                message?: string;
-                settings: TelegramSettings;
-            }>('/api/v1/admin/settings/telegram/set-webhook', {});
-
-            setConfig(payload.settings);
-            setNotice({
-                tone: 'success',
-                text: payload.message || 'Webhook успешно установлен.',
-            });
-        } catch (error) {
-            setNotice({ tone: 'error', text: getErrorMessage(error) });
-        } finally {
-            setSavingKey(null);
-        }
-    };
 
     const createLink = async (event: FormEvent) => {
         event.preventDefault();
@@ -233,8 +207,8 @@ export default function Telegram({ settings, links, admins }: Props) {
             {notice ? (
                 <div
                     className={`flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium ${notice.tone === 'success'
-                            ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400'
-                            : 'bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400'
+                        ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400'
+                        : 'bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400'
                         }`}
                 >
                     {notice.tone === 'success' ? (
@@ -275,10 +249,6 @@ export default function Telegram({ settings, links, admins }: Props) {
                                 <Badge variant="muted" className="ml-1">
                                     {config.botTokenSource}
                                 </Badge>
-                                {' · '}Secret:{' '}
-                                <Badge variant="muted" className="ml-1">
-                                    {config.webhookSecretSource || 'none'}
-                                </Badge>
                             </div>
                         </div>
                     </div>
@@ -301,33 +271,7 @@ export default function Telegram({ settings, links, admins }: Props) {
                                 }
                             />
                         </div>
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-medium text-muted-foreground">
-                                Webhook Secret
-                            </label>
-                            <Input
-                                type="password"
-                                placeholder="secret-key"
-                                value={config.webhookSecret}
-                                onChange={(event) =>
-                                    setConfig((prev) => ({
-                                        ...prev,
-                                        webhookSecret: event.target.value,
-                                    }))
-                                }
-                            />
-                        </div>
-                        <div className="space-y-1.5 md:col-span-2">
-                            <label className="text-xs font-medium text-muted-foreground">
-                                <Webhook className="mr-1 inline-block h-3.5 w-3.5" />
-                                Webhook URL
-                            </label>
-                            <Input
-                                value={config.webhookUrl}
-                                disabled
-                                className="bg-muted/50"
-                            />
-                        </div>
+
                         <div className="md:col-span-2 flex flex-wrap gap-2">
                             <Button
                                 type="button"
@@ -335,15 +279,6 @@ export default function Telegram({ settings, links, admins }: Props) {
                                 onClick={saveSettings}
                             >
                                 Сохранить настройки
-                            </Button>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                disabled={savingKey === 'webhook'}
-                                onClick={setWebhook}
-                            >
-                                <Webhook className="mr-1 h-4 w-4" />
-                                Установить webhook
                             </Button>
                         </div>
                     </div>

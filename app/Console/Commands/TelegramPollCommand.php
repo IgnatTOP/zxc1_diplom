@@ -1,37 +1,72 @@
 <?php
 
-namespace App\Http\Controllers\Api\V1;
+namespace App\Console\Commands;
 
-use App\Http\Controllers\Controller;
 use App\Models\AdminTelegramLink;
 use App\Models\SupportConversation;
 use App\Models\SupportMessage;
 use App\Services\Support\TelegramBotService;
 use App\Support\TelegramSettings;
-use Illuminate\Http\Request;
+use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
-class TelegramWebhookController extends Controller
+class TelegramPollCommand extends Command
 {
-    public function __construct(
-        private readonly TelegramBotService $telegramBotService,
-    ) {}
+    protected $signature = 'telegram:poll';
 
-    public function handle(Request $request, string $secret)
+    protected $description = 'Listen to Telegram updates via long polling';
+
+    public function handle(TelegramBotService $telegramBotService)
     {
-        if ($secret !== TelegramSettings::webhookSecret()) {
-            abort(403);
-        }
+        $this->info('Starting Telegram polling...');
 
-        $update = $request->all();
+        while (true) {
+            $botToken = TelegramSettings::botToken();
+
+            if ($botToken === '') {
+                $this->error('Bot token is not configured. Retrying in 10 seconds...');
+                sleep(10);
+                continue;
+            }
+
+            $offset = Cache::get('telegram_last_update_id', 0) + 1;
+
+            try {
+                $response = Http::timeout(40)->get("https://api.telegram.org/bot{$botToken}/getUpdates", [
+                    'offset' => $offset,
+                    'timeout' => 30,
+                    'allowed_updates' => json_encode(['message', 'edited_message']),
+                ]);
+
+                if ($response->ok() && isset($response['result']) && is_array($response['result'])) {
+                    foreach ($response['result'] as $update) {
+                        $this->processUpdate($update, $telegramBotService);
+                        
+                        $updateId = (int) $update['update_id'];
+                        Cache::put('telegram_last_update_id', $updateId);
+                    }
+                }
+            } catch (\Exception $e) {
+                Log::error('Telegram polling error: ' . $e->getMessage());
+                // Sleep brief interval on error
+                sleep(2);
+            }
+        }
+    }
+
+    private function processUpdate(array $update, TelegramBotService $telegramBotService)
+    {
         $updateId = isset($update['update_id']) ? (int) $update['update_id'] : null;
         $message = $update['message'] ?? $update['edited_message'] ?? null;
 
         if (! is_array($message)) {
-            return response()->json(['ok' => true, 'ignored' => true]);
+            return;
         }
 
         if ($updateId !== null && SupportMessage::query()->where('telegram_update_id', $updateId)->exists()) {
-            return response()->json(['ok' => true, 'duplicate' => true]);
+            return;
         }
 
         $from = $message['from'] ?? [];
@@ -41,7 +76,7 @@ class TelegramWebhookController extends Controller
         $chatId = (int) ($chat['id'] ?? 0);
 
         if ($telegramUserId <= 0 || $chatId <= 0) {
-            return response()->json(['ok' => true, 'ignored' => true]);
+            return;
         }
 
         $adminLink = AdminTelegramLink::query()
@@ -51,38 +86,35 @@ class TelegramWebhookController extends Controller
             ->first();
 
         if (! $adminLink || $adminLink->user?->role !== 'admin') {
-            $this->telegramBotService->sendMessage(
+            $telegramBotService->sendMessage(
                 $chatId,
-                'Доступ запрещен. Ваш Telegram не привязан к активному администратору.',
+                'Доступ запрещен. Ваш Telegram не привязан к активному администратору.'
             );
-
-            return response()->json(['ok' => true, 'unauthorized' => true]);
+            return;
         }
 
         if ($text === '/start') {
-            $this->telegramBotService->sendMessage(
+            $telegramBotService->sendMessage(
                 $chatId,
-                "Бот поддержки DanceWave.\nОтвет: /reply <conversationId> <текст>\nИли ответьте на сообщение с маркером [#ID].",
+                "Бот поддержки DanceWave.\nОтвет: /reply <conversationId> <текст>\nИли ответьте на сообщение с маркером [#ID]."
             );
-
-            return response()->json(['ok' => true, 'handled' => 'start']);
+            return;
         }
 
         [$conversationId, $body] = $this->extractReply($message, $text);
 
         if ($conversationId === null || $body === null) {
-            $this->telegramBotService->sendMessage(
+            $telegramBotService->sendMessage(
                 $chatId,
-                "Не удалось определить диалог.\nИспользуйте: /reply 123 Текст ответа",
+                "Не удалось определить диалог.\nИспользуйте: /reply 123 Текст ответа"
             );
-
-            return response()->json(['ok' => true, 'handled' => 'invalid_format']);
+            return;
         }
 
         $conversation = SupportConversation::query()->find($conversationId);
         if (! $conversation) {
-            $this->telegramBotService->sendMessage($chatId, 'Диалог не найден.');
-            return response()->json(['ok' => true, 'handled' => 'not_found']);
+            $telegramBotService->sendMessage($chatId, 'Диалог не найден.');
+            return;
         }
 
         $supportMessage = SupportMessage::query()->create([
@@ -105,12 +137,10 @@ class TelegramWebhookController extends Controller
 
         event(new \App\Events\SupportMessageCreated($conversation->fresh(), $supportMessage->fresh()));
 
-        $this->telegramBotService->sendMessage(
+        $telegramBotService->sendMessage(
             $chatId,
-            sprintf('Ответ отправлен в диалог #%d.', $conversation->id),
+            sprintf('Ответ отправлен в диалог #%d.', $conversation->id)
         );
-
-        return response()->json(['ok' => true]);
     }
 
     /**

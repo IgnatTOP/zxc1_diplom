@@ -20,7 +20,6 @@ use App\Http\Controllers\Api\V1\PaymentsController;
 use App\Http\Controllers\Api\V1\ProfileDataController;
 use App\Http\Controllers\Api\V1\PublicApplicationController;
 use App\Http\Controllers\Api\V1\SupportController;
-use App\Http\Controllers\Api\V1\TelegramWebhookController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 
@@ -97,7 +96,6 @@ Route::prefix('v1')->middleware('web')->group(function (): void {
 
             Route::get('/settings/telegram', [AdminTelegramSettingsController::class, 'show']);
             Route::patch('/settings/telegram', [AdminTelegramSettingsController::class, 'update']);
-            Route::post('/settings/telegram/set-webhook', [AdminTelegramSettingsController::class, 'setWebhook']);
 
             Route::post('/telegram/links', [AdminTelegramLinksController::class, 'store']);
             Route::patch('/telegram/links/{link}', [AdminTelegramLinksController::class, 'update']);
@@ -110,5 +108,3 @@ Route::prefix('v1')->middleware('web')->group(function (): void {
 
     Route::post('/applications', [PublicApplicationController::class, 'store']);
 });
-
-Route::post('/v1/telegram/webhook/{secret}', [TelegramWebhookController::class, 'handle']);

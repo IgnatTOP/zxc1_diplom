@@ -11,6 +11,9 @@ mkdir -p \
     storage/logs \
     bootstrap/cache
 
+# Ensure production container never uses stale Vite HMR endpoint.
+rm -f public/hot
+
 if [ "${DB_CONNECTION:-sqlite}" = "sqlite" ]; then
     SQLITE_PATH="${DB_DATABASE:-/var/www/html/storage/database.sqlite}"
     mkdir -p "$(dirname "$SQLITE_PATH")"

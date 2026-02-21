@@ -47,8 +47,10 @@ services:
       RUN_LEGACY_IMPORT: ${RUN_LEGACY_IMPORT:-false}
       LEGACY_DB_PATH: /var/www/html/zxc1/diplo/data/app.sqlite
       LEGACY_MEDIA_PATH: /var/www/html/zxc1/diplo/assets/images
+      SEED_MEDIA_SOURCE: /seed-media
     volumes:
       - dancewave_storage:/var/www/html/storage
+      - /Users/ignat/Documents/ArenaIce/backend/media:/seed-media:ro
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8000/up"]
       interval: 15s
