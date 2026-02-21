@@ -13,24 +13,35 @@ use App\Http\Controllers\Api\V1\Admin\SectionNewsController as AdminSectionNewsC
 use App\Http\Controllers\Api\V1\Admin\SectionsController as AdminSectionsController;
 use App\Http\Controllers\Api\V1\Admin\SupportConversationsController as AdminSupportConversationsController;
 use App\Http\Controllers\Api\V1\Admin\UsersController as AdminUsersController;
+use App\Http\Controllers\Api\V1\Admin\TelegramLinksController as AdminTelegramLinksController;
+use App\Http\Controllers\Api\V1\Admin\TelegramSettingsController as AdminTelegramSettingsController;
+use App\Http\Controllers\Api\V1\EnrollmentController;
 use App\Http\Controllers\Api\V1\PaymentsController;
 use App\Http\Controllers\Api\V1\ProfileDataController;
+use App\Http\Controllers\Api\V1\PublicApplicationController;
 use App\Http\Controllers\Api\V1\SupportController;
 use App\Http\Controllers\Api\V1\TelegramWebhookController;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 
 Route::prefix('v1')->middleware('web')->group(function (): void {
     Route::middleware('auth')->group(function (): void {
         Route::post('/payments/checkout', [PaymentsController::class, 'checkout']);
+        Route::post('/enrollments/apply', [EnrollmentController::class, 'apply']);
 
         Route::get('/profile/enrollments', [ProfileDataController::class, 'enrollments']);
         Route::get('/profile/schedule', [ProfileDataController::class, 'schedule']);
         Route::get('/profile/payments', [ProfileDataController::class, 'payments']);
         Route::get('/profile/section-news', [ProfileDataController::class, 'sectionNews']);
 
-        Route::post('/admin/support/messages', [AdminSupportController::class, 'store'])->middleware('admin');
+        Route::post('/admin/support/messages', [AdminSupportController::class, 'store'])
+            ->middleware('admin')
+            ->withoutMiddleware([ValidateCsrfToken::class]);
 
-        Route::prefix('/admin')->middleware('admin')->group(function (): void {
+        Route::prefix('/admin')
+            ->middleware('admin')
+            ->withoutMiddleware([ValidateCsrfToken::class])
+            ->group(function (): void {
             Route::get('/applications', [AdminApplicationsController::class, 'index']);
             Route::patch('/applications/{application}', [AdminApplicationsController::class, 'update']);
             Route::post('/applications/{application}/auto-assign', [AdminApplicationsController::class, 'autoAssign']);
@@ -83,11 +94,21 @@ Route::prefix('v1')->middleware('web')->group(function (): void {
 
             Route::patch('/billing/enrollments/{enrollment}', [AdminBillingController::class, 'updateEnrollment']);
             Route::patch('/billing/payments/{payment}', [AdminBillingController::class, 'updatePayment']);
+
+            Route::get('/settings/telegram', [AdminTelegramSettingsController::class, 'show']);
+            Route::patch('/settings/telegram', [AdminTelegramSettingsController::class, 'update']);
+            Route::post('/settings/telegram/set-webhook', [AdminTelegramSettingsController::class, 'setWebhook']);
+
+            Route::post('/telegram/links', [AdminTelegramLinksController::class, 'store']);
+            Route::patch('/telegram/links/{link}', [AdminTelegramLinksController::class, 'update']);
+            Route::delete('/telegram/links/{link}', [AdminTelegramLinksController::class, 'destroy']);
         });
     });
 
     Route::get('/support/current', [SupportController::class, 'current']);
     Route::post('/support/messages', [SupportController::class, 'store']);
+
+    Route::post('/applications', [PublicApplicationController::class, 'store']);
 });
 
 Route::post('/v1/telegram/webhook/{secret}', [TelegramWebhookController::class, 'handle']);

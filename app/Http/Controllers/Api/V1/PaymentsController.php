@@ -20,7 +20,7 @@ class PaymentsController extends Controller
             'cardNumber' => ['required', 'string', 'min:12', 'max:24'],
             'cardHolder' => ['required', 'string', 'max:120'],
             'expMonth' => ['required', 'integer', 'between:1,12'],
-            'expYear' => ['required', 'integer', 'min:2020', 'max:2100'],
+            'expYear' => ['required', 'integer', 'between:0,2100'],
             'cvv' => ['required', 'string', 'min:3', 'max:4'],
         ]);
 
@@ -34,7 +34,7 @@ class PaymentsController extends Controller
         }
 
         $expMonth = (int) $payload['expMonth'];
-        $expYear = (int) $payload['expYear'];
+        $expYear = $this->normalizeExpYear((int) $payload['expYear']);
         $expiresAt = Carbon::create($expYear, $expMonth, 1)->endOfMonth();
         if ($expiresAt->isPast()) {
             throw ValidationException::withMessages([
@@ -141,5 +141,21 @@ class PaymentsController extends Controller
                 return mb_strtoupper($first).'***';
             })
             ->implode(' ');
+    }
+
+    private function normalizeExpYear(int $expYear): int
+    {
+        // Accept both YY and YYYY in demo checkout.
+        if ($expYear >= 0 && $expYear <= 99) {
+            $expYear += 2000;
+        }
+
+        if ($expYear < 2020 || $expYear > 2100) {
+            throw ValidationException::withMessages([
+                'expYear' => 'Некорректный год действия карты.',
+            ]);
+        }
+
+        return $expYear;
     }
 }

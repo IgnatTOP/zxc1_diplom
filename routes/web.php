@@ -42,6 +42,7 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->group(function (): void {
     Route::get('/section-news', [AdminPageController::class, 'sectionNews'])->name('admin.section-news');
     Route::get('/support', [AdminPageController::class, 'support'])->name('admin.support');
     Route::get('/billing', [AdminPageController::class, 'billing'])->name('admin.billing');
+    Route::get('/telegram', [AdminPageController::class, 'telegram'])->name('admin.telegram');
 });
 
 require __DIR__.'/auth.php';

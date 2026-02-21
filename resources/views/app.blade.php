@@ -12,6 +12,25 @@
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
         <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Unbounded:wght@500;700&display=swap" rel="stylesheet">
 
+        <script>
+            (function () {
+                const key = 'dw-theme';
+                const stored = localStorage.getItem(key);
+                const theme =
+                    stored === 'light' || stored === 'dark' || stored === 'system'
+                        ? stored
+                        : 'system';
+                const resolved =
+                    theme === 'system'
+                        ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+                        : theme;
+
+                document.documentElement.classList.toggle('dark', resolved === 'dark');
+                document.documentElement.dataset.theme = resolved;
+                document.documentElement.style.colorScheme = resolved;
+            })();
+        </script>
+
         <!-- Scripts -->
         @routes
         @viteReactRefresh

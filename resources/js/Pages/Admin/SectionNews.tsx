@@ -1,3 +1,4 @@
+import { AdminSelect } from '@/shared/ui/admin-select';
 import { apiDelete, apiPatch, apiPost } from '@/shared/api/http';
 import { formatShortDate } from '@/shared/lib/utils';
 import { Badge } from '@/shared/ui/badge';
@@ -6,6 +7,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
 import { Input } from '@/shared/ui/input';
 import { Textarea } from '@/shared/ui/textarea';
 import { AdminLayout } from '@/widgets/admin/AdminLayout';
+import {
+    AlertCircle,
+    CheckCircle2,
+    Newspaper,
+    Plus,
+    Search,
+    Trash2,
+} from 'lucide-react';
 import { FormEvent, useMemo, useState } from 'react';
 
 type SectionOption = { id: number; name: string };
@@ -90,7 +99,7 @@ function normalizeItem(
     };
 }
 
-export default function SectionNews({ sections, items }: Props) {
+export default function SectionNews({ sections = [], items = [] }: Props) {
     const defaultSectionId = useMemo(() => sections[0]?.id ?? 0, [sections]);
     const [list, setList] = useState<EditableSectionNewsItem[]>(() =>
         items.map((item) => normalizeItem(item, defaultSectionId)),
@@ -256,106 +265,146 @@ export default function SectionNews({ sections, items }: Props) {
 
     return (
         <AdminLayout title="Новости секций">
+            {notice ? (
+                <div
+                    className={`flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium ${notice.tone === 'success'
+                        ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400'
+                        : 'bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400'
+                        }`}
+                >
+                    {notice.tone === 'success' ? (
+                        <CheckCircle2 className="h-4 w-4 shrink-0" />
+                    ) : (
+                        <AlertCircle className="h-4 w-4 shrink-0" />
+                    )}
+                    {notice.text}
+                </div>
+            ) : null}
+
             <Card>
                 <CardHeader>
-                    <CardTitle>Новая новость секции</CardTitle>
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand/10">
+                            <Newspaper className="h-5 w-5 text-brand" />
+                        </div>
+                        <CardTitle>Новая новость секции</CardTitle>
+                    </div>
                 </CardHeader>
                 <CardContent>
                     <form
-                        className="grid gap-3 md:grid-cols-2"
+                        className="grid gap-4 md:grid-cols-2"
                         onSubmit={create}
                     >
-                        <select
-                            className="h-11 rounded-xl border border-border px-3"
-                            value={form.sectionId}
-                            onChange={(event) =>
-                                setForm((prev) => ({
-                                    ...prev,
-                                    sectionId: Number(event.target.value),
-                                }))
-                            }
-                            required
-                        >
-                            {sections.length === 0 ? (
-                                <option value={0}>Нет секций</option>
-                            ) : null}
-                            {sections.map((section) => (
-                                <option key={section.id} value={section.id}>
-                                    {section.name}
-                                </option>
-                            ))}
-                        </select>
-                        <Input
-                            placeholder="Заголовок"
-                            value={form.title}
-                            onChange={(event) =>
-                                setForm((prev) => ({
-                                    ...prev,
-                                    title: event.target.value,
-                                }))
-                            }
-                            required
-                        />
-                        <Input
-                            placeholder="slug"
-                            value={form.slug}
-                            onChange={(event) =>
-                                setForm((prev) => ({
-                                    ...prev,
-                                    slug: event.target.value,
-                                }))
-                            }
-                            required
-                        />
-                        <Input
-                            placeholder="Обложка (путь/URL)"
-                            value={form.coverImage}
-                            onChange={(event) =>
-                                setForm((prev) => ({
-                                    ...prev,
-                                    coverImage: event.target.value,
-                                }))
-                            }
-                        />
-                        <Textarea
-                            className="md:col-span-2"
-                            placeholder="Краткое описание"
-                            rows={4}
-                            value={form.summary}
-                            onChange={(event) =>
-                                setForm((prev) => ({
-                                    ...prev,
-                                    summary: event.target.value,
-                                }))
-                            }
-                        />
-                        <Textarea
-                            className="md:col-span-2"
-                            placeholder="Полный текст"
-                            rows={10}
-                            value={form.content}
-                            onChange={(event) =>
-                                setForm((prev) => ({
-                                    ...prev,
-                                    content: event.target.value,
-                                }))
-                            }
-                            required
-                        />
-                        <Input
-                            type="datetime-local"
-                            value={form.publishedAt}
-                            onChange={(event) =>
-                                setForm((prev) => ({
-                                    ...prev,
-                                    publishedAt: event.target.value,
-                                }))
-                            }
-                        />
-                        <div className="flex items-center gap-3">
-                            <label className="inline-flex items-center gap-2 text-sm">
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-muted-foreground">Секция *</label>
+                            <AdminSelect
+                                value={form.sectionId}
+                                onChange={(event) =>
+                                    setForm((prev) => ({
+                                        ...prev,
+                                        sectionId: Number(event.target.value),
+                                    }))
+                                }
+                                required
+                            >
+                                {sections.length === 0 ? (
+                                    <option value={0}>Нет секций</option>
+                                ) : null}
+                                {sections.map((section) => (
+                                    <option key={section.id} value={section.id}>
+                                        {section.name}
+                                    </option>
+                                ))}
+                            </AdminSelect>
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-muted-foreground">Заголовок *</label>
+                            <Input
+                                placeholder="Заголовок новости"
+                                value={form.title}
+                                onChange={(event) =>
+                                    setForm((prev) => ({
+                                        ...prev,
+                                        title: event.target.value,
+                                    }))
+                                }
+                                required
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-muted-foreground">Slug *</label>
+                            <Input
+                                placeholder="my-news-slug"
+                                value={form.slug}
+                                onChange={(event) =>
+                                    setForm((prev) => ({
+                                        ...prev,
+                                        slug: event.target.value,
+                                    }))
+                                }
+                                required
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-muted-foreground">Обложка</label>
+                            <Input
+                                placeholder="Обложка (путь/URL)"
+                                value={form.coverImage}
+                                onChange={(event) =>
+                                    setForm((prev) => ({
+                                        ...prev,
+                                        coverImage: event.target.value,
+                                    }))
+                                }
+                            />
+                        </div>
+                        <div className="space-y-1.5 md:col-span-2">
+                            <label className="text-xs font-medium text-muted-foreground">Краткое описание</label>
+                            <Textarea
+                                placeholder="Краткое описание новости"
+                                rows={3}
+                                value={form.summary}
+                                onChange={(event) =>
+                                    setForm((prev) => ({
+                                        ...prev,
+                                        summary: event.target.value,
+                                    }))
+                                }
+                            />
+                        </div>
+                        <div className="space-y-1.5 md:col-span-2">
+                            <label className="text-xs font-medium text-muted-foreground">Полный текст *</label>
+                            <Textarea
+                                placeholder="Полный текст новости"
+                                rows={8}
+                                value={form.content}
+                                onChange={(event) =>
+                                    setForm((prev) => ({
+                                        ...prev,
+                                        content: event.target.value,
+                                    }))
+                                }
+                                required
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-muted-foreground">Дата публикации</label>
+                            <Input
+                                type="datetime-local"
+                                value={form.publishedAt}
+                                onChange={(event) =>
+                                    setForm((prev) => ({
+                                        ...prev,
+                                        publishedAt: event.target.value,
+                                    }))
+                                }
+                            />
+                        </div>
+                        <div className="flex items-end gap-3">
+                            <label className="inline-flex h-11 items-center gap-2 rounded-xl border border-border px-3 text-sm">
                                 <input
                                     type="checkbox"
+                                    className="accent-brand"
                                     checked={form.isPublished}
                                     onChange={(event) =>
                                         setForm((prev) => ({
@@ -370,6 +419,7 @@ export default function SectionNews({ sections, items }: Props) {
                                 type="submit"
                                 disabled={isCreating || sections.length === 0}
                             >
+                                <Plus className="mr-1 h-4 w-4" />
                                 Добавить
                             </Button>
                         </div>
@@ -377,40 +427,38 @@ export default function SectionNews({ sections, items }: Props) {
                 </CardContent>
             </Card>
 
-            {notice ? (
-                <p
-                    className={`rounded-lg px-3 py-2 text-sm ${
-                        notice.tone === 'success'
-                            ? 'bg-emerald-100 text-emerald-700'
-                            : 'bg-red-100 text-red-700'
-                    }`}
-                >
-                    {notice.text}
-                </p>
-            ) : null}
-
             <Card>
                 <CardContent className="flex flex-col gap-3 pt-6 lg:flex-row lg:items-center lg:justify-between">
-                    <div className="text-sm text-muted-foreground">
-                        Всего новостей: {list.length} · Опубликовано:{' '}
-                        {list.filter((item) => item.is_published).length}
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand/10">
+                            <Newspaper className="h-5 w-5 text-brand" />
+                        </div>
+                        <p className="text-sm font-medium">
+                            Всего: {list.length} · Опубликовано:{' '}
+                            {list.filter((i) => i.is_published).length}
+                        </p>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                        <Input
-                            className="min-w-[260px]"
-                            value={query}
-                            placeholder="Поиск по заголовку, slug, тексту"
-                            onChange={(event) => setQuery(event.target.value)}
-                        />
-                        <select
-                            className="h-11 rounded-xl border border-border px-3"
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                        <div className="relative flex-1">
+                            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                            <Input
+                                className="pl-9"
+                                value={query}
+                                placeholder="Поиск по заголовку, slug, тексту"
+                                onChange={(event) =>
+                                    setQuery(event.target.value)
+                                }
+                            />
+                        </div>
+                        <AdminSelect
+                            className="w-full sm:w-52"
                             value={publishFilter}
                             onChange={(event) =>
                                 setPublishFilter(
                                     event.target.value as
-                                        | 'all'
-                                        | 'published'
-                                        | 'draft',
+                                    | 'all'
+                                    | 'published'
+                                    | 'draft',
                                 )
                             }
                         >
@@ -419,14 +467,17 @@ export default function SectionNews({ sections, items }: Props) {
                                 Только опубликованные
                             </option>
                             <option value="draft">Только черновики</option>
-                        </select>
+                        </AdminSelect>
                     </div>
                 </CardContent>
             </Card>
 
-            <div className="grid gap-3 xl:grid-cols-2">
+            <div className="grid gap-4 xl:grid-cols-2">
                 {filteredList.map((item) => (
-                    <Card key={item.id}>
+                    <Card
+                        key={item.id}
+                        className="transition-shadow hover:shadow-md"
+                    >
                         <CardContent className="space-y-3 pt-6">
                             <div className="flex flex-wrap items-center justify-between gap-2">
                                 <p className="text-sm font-semibold">
@@ -443,162 +494,185 @@ export default function SectionNews({ sections, items }: Props) {
                                 </Badge>
                             </div>
                             <div className="grid gap-3 md:grid-cols-2">
-                                <select
-                                    className="h-11 rounded-xl border border-border px-3"
-                                    value={item.section_id}
+                                <div className="space-y-1">
+                                    <label className="text-xs text-muted-foreground">Секция</label>
+                                    <AdminSelect
+                                        value={item.section_id}
+                                        onChange={(event) =>
+                                            setList((prev) =>
+                                                prev.map((row) =>
+                                                    row.id === item.id
+                                                        ? {
+                                                            ...row,
+                                                            section_id: Number(
+                                                                event.target
+                                                                    .value,
+                                                            ),
+                                                            section:
+                                                                sections.find(
+                                                                    (section) =>
+                                                                        section.id ===
+                                                                        Number(
+                                                                            event
+                                                                                .target
+                                                                                .value,
+                                                                        ),
+                                                                ),
+                                                        }
+                                                        : row,
+                                                ),
+                                            )
+                                        }
+                                    >
+                                        {sections.map((section) => (
+                                            <option
+                                                key={section.id}
+                                                value={section.id}
+                                            >
+                                                {section.name}
+                                            </option>
+                                        ))}
+                                    </AdminSelect>
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-xs text-muted-foreground">Заголовок</label>
+                                    <Input
+                                        value={item.title}
+                                        onChange={(event) =>
+                                            setList((prev) =>
+                                                prev.map((row) =>
+                                                    row.id === item.id
+                                                        ? {
+                                                            ...row,
+                                                            title: event.target
+                                                                .value,
+                                                        }
+                                                        : row,
+                                                ),
+                                            )
+                                        }
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-xs text-muted-foreground">Slug</label>
+                                    <Input
+                                        value={item.slug}
+                                        onChange={(event) =>
+                                            setList((prev) =>
+                                                prev.map((row) =>
+                                                    row.id === item.id
+                                                        ? {
+                                                            ...row,
+                                                            slug: event.target
+                                                                .value,
+                                                        }
+                                                        : row,
+                                                ),
+                                            )
+                                        }
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-xs text-muted-foreground">Обложка</label>
+                                    <Input
+                                        value={item.cover_image}
+                                        placeholder="Обложка (путь/URL)"
+                                        onChange={(event) =>
+                                            setList((prev) =>
+                                                prev.map((row) =>
+                                                    row.id === item.id
+                                                        ? {
+                                                            ...row,
+                                                            cover_image:
+                                                                event.target
+                                                                    .value,
+                                                        }
+                                                        : row,
+                                                ),
+                                            )
+                                        }
+                                    />
+                                </div>
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs text-muted-foreground">Краткое описание</label>
+                                <Textarea
+                                    rows={3}
+                                    value={item.summary}
+                                    placeholder="Краткое описание"
                                     onChange={(event) =>
                                         setList((prev) =>
                                             prev.map((row) =>
                                                 row.id === item.id
                                                     ? {
-                                                          ...row,
-                                                          section_id: Number(
-                                                              event.target
-                                                                  .value,
-                                                          ),
-                                                          section:
-                                                              sections.find(
-                                                                  (section) =>
-                                                                      section.id ===
-                                                                      Number(
-                                                                          event
-                                                                              .target
-                                                                              .value,
-                                                                      ),
-                                                              ),
-                                                      }
-                                                    : row,
-                                            ),
-                                        )
-                                    }
-                                >
-                                    {sections.map((section) => (
-                                        <option
-                                            key={section.id}
-                                            value={section.id}
-                                        >
-                                            {section.name}
-                                        </option>
-                                    ))}
-                                </select>
-                                <Input
-                                    value={item.title}
-                                    onChange={(event) =>
-                                        setList((prev) =>
-                                            prev.map((row) =>
-                                                row.id === item.id
-                                                    ? {
-                                                          ...row,
-                                                          title: event.target
-                                                              .value,
-                                                      }
-                                                    : row,
-                                            ),
-                                        )
-                                    }
-                                />
-                                <Input
-                                    value={item.slug}
-                                    onChange={(event) =>
-                                        setList((prev) =>
-                                            prev.map((row) =>
-                                                row.id === item.id
-                                                    ? {
-                                                          ...row,
-                                                          slug: event.target
-                                                              .value,
-                                                      }
-                                                    : row,
-                                            ),
-                                        )
-                                    }
-                                />
-                                <Input
-                                    value={item.cover_image}
-                                    placeholder="Обложка (путь/URL)"
-                                    onChange={(event) =>
-                                        setList((prev) =>
-                                            prev.map((row) =>
-                                                row.id === item.id
-                                                    ? {
-                                                          ...row,
-                                                          cover_image:
-                                                              event.target
-                                                                  .value,
-                                                      }
+                                                        ...row,
+                                                        summary:
+                                                            event.target.value,
+                                                    }
                                                     : row,
                                             ),
                                         )
                                     }
                                 />
                             </div>
-                            <Textarea
-                                rows={4}
-                                value={item.summary}
-                                onChange={(event) =>
-                                    setList((prev) =>
-                                        prev.map((row) =>
-                                            row.id === item.id
-                                                ? {
-                                                      ...row,
-                                                      summary:
-                                                          event.target.value,
-                                                  }
-                                                : row,
-                                        ),
-                                    )
-                                }
-                            />
-                            <Textarea
-                                rows={10}
-                                value={item.content}
-                                onChange={(event) =>
-                                    setList((prev) =>
-                                        prev.map((row) =>
-                                            row.id === item.id
-                                                ? {
-                                                      ...row,
-                                                      content:
-                                                          event.target.value,
-                                                  }
-                                                : row,
-                                        ),
-                                    )
-                                }
-                            />
-                            <div className="grid gap-3 md:grid-cols-2">
-                                <Input
-                                    type="datetime-local"
-                                    value={item.published_at}
+                            <div className="space-y-1">
+                                <label className="text-xs text-muted-foreground">Полный текст</label>
+                                <Textarea
+                                    rows={8}
+                                    value={item.content}
+                                    placeholder="Полный текст"
                                     onChange={(event) =>
                                         setList((prev) =>
                                             prev.map((row) =>
                                                 row.id === item.id
                                                     ? {
-                                                          ...row,
-                                                          published_at:
-                                                              event.target
-                                                                  .value,
-                                                      }
+                                                        ...row,
+                                                        content:
+                                                            event.target.value,
+                                                    }
                                                     : row,
                                             ),
                                         )
                                     }
                                 />
-                                <label className="inline-flex items-center gap-2 text-sm">
+                            </div>
+                            <div className="grid gap-3 md:grid-cols-2">
+                                <div className="space-y-1">
+                                    <label className="text-xs text-muted-foreground">Дата публикации</label>
+                                    <Input
+                                        type="datetime-local"
+                                        value={item.published_at}
+                                        onChange={(event) =>
+                                            setList((prev) =>
+                                                prev.map((row) =>
+                                                    row.id === item.id
+                                                        ? {
+                                                            ...row,
+                                                            published_at:
+                                                                event.target
+                                                                    .value,
+                                                        }
+                                                        : row,
+                                                ),
+                                            )
+                                        }
+                                    />
+                                </div>
+                                <label className="inline-flex h-11 items-center gap-2 self-end rounded-xl border border-border px-3 text-sm">
                                     <input
                                         type="checkbox"
+                                        className="accent-brand"
                                         checked={item.is_published}
                                         onChange={(event) =>
                                             setList((prev) =>
                                                 prev.map((row) =>
                                                     row.id === item.id
                                                         ? {
-                                                              ...row,
-                                                              is_published:
-                                                                  event.target
-                                                                      .checked,
-                                                          }
+                                                            ...row,
+                                                            is_published:
+                                                                event.target
+                                                                    .checked,
+                                                        }
                                                         : row,
                                                 ),
                                             )
@@ -610,9 +684,10 @@ export default function SectionNews({ sections, items }: Props) {
                             <p className="text-xs text-muted-foreground">
                                 Публикация: {formatShortDate(item.published_at)}
                             </p>
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 border-t border-border/50 pt-3">
                                 <Button
                                     type="button"
+                                    size="sm"
                                     disabled={savingId === item.id}
                                     onClick={() => update(item)}
                                 >
@@ -620,10 +695,12 @@ export default function SectionNews({ sections, items }: Props) {
                                 </Button>
                                 <Button
                                     type="button"
+                                    size="sm"
                                     variant="destructive"
                                     disabled={savingId === item.id}
                                     onClick={() => remove(item.id)}
                                 >
+                                    <Trash2 className="mr-1 h-3.5 w-3.5" />
                                     Удалить
                                 </Button>
                             </div>
@@ -631,7 +708,7 @@ export default function SectionNews({ sections, items }: Props) {
                     </Card>
                 ))}
                 {filteredList.length === 0 ? (
-                    <Card>
+                    <Card className="xl:col-span-2">
                         <CardContent className="py-10 text-center text-muted-foreground">
                             {list.length === 0
                                 ? 'Новостей пока нет.'

@@ -39,15 +39,34 @@ export async function apiDelete<T>(
     return requestWithBody<T>('DELETE', url, data ?? {}, init);
 }
 
+function readCookie(name: string): string | null {
+    if (typeof document === 'undefined') {
+        return null;
+    }
+
+    const key = `${encodeURIComponent(name)}=`;
+    const part = document.cookie
+        .split('; ')
+        .find((entry) => entry.startsWith(key));
+
+    if (!part) {
+        return null;
+    }
+
+    return decodeURIComponent(part.slice(key.length));
+}
+
 async function requestWithBody<T>(
     method: 'POST' | 'PATCH' | 'DELETE',
     url: string,
     data: unknown,
     init?: RequestInit,
 ): Promise<T> {
-    const csrf = document
+    const csrfMeta = document
         .querySelector<HTMLMetaElement>('meta[name="csrf-token"]')
         ?.getAttribute('content');
+    const xsrfCookie = readCookie('XSRF-TOKEN');
+    const csrfToken = xsrfCookie || csrfMeta;
 
     const response = await fetch(url, {
         method,
@@ -56,7 +75,8 @@ async function requestWithBody<T>(
         headers: {
             'Content-Type': 'application/json',
             Accept: 'application/json',
-            ...(csrf ? { 'X-CSRF-TOKEN': csrf } : {}),
+            ...(csrfToken ? { 'X-CSRF-TOKEN': csrfToken } : {}),
+            ...(xsrfCookie ? { 'X-XSRF-TOKEN': xsrfCookie } : {}),
             ...(init?.headers || {}),
         },
         body: JSON.stringify(data),

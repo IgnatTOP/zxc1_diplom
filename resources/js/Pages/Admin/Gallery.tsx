@@ -6,6 +6,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
 import { Input } from '@/shared/ui/input';
 import { Textarea } from '@/shared/ui/textarea';
 import { AdminLayout } from '@/widgets/admin/AdminLayout';
+import {
+    AlertCircle,
+    CheckCircle2,
+    Image as ImageIcon,
+    Layers,
+    Plus,
+    Trash2,
+} from 'lucide-react';
 import { FormEvent, useMemo, useState } from 'react';
 
 type GalleryItem = {
@@ -45,7 +53,7 @@ function getErrorMessage(error: unknown): string {
         : 'Не удалось выполнить запрос.';
 }
 
-export default function Gallery({ items, collages }: Props) {
+export default function Gallery({ items = [], collages = [] }: Props) {
     const [galleryItems, setGalleryItems] = useState<GalleryItem[]>(items);
     const [collageItems, setCollageItems] = useState<CollageItem[]>(
         collages.map(normalizeCollage),
@@ -240,94 +248,138 @@ export default function Gallery({ items, collages }: Props) {
 
     return (
         <AdminLayout title="Галерея">
+            {notice ? (
+                <div
+                    className={`flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium ${notice.tone === 'success'
+                        ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400'
+                        : 'bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400'
+                        }`}
+                >
+                    {notice.tone === 'success' ? (
+                        <CheckCircle2 className="h-4 w-4 shrink-0" />
+                    ) : (
+                        <AlertCircle className="h-4 w-4 shrink-0" />
+                    )}
+                    {notice.text}
+                </div>
+            ) : null}
+
             <Card>
-                <CardContent className="flex flex-wrap items-center gap-4 pt-6 text-sm text-muted-foreground">
-                    <span>Фотографий: {galleryItems.length}</span>
-                    <span>Активных фото: {activeGalleryCount}</span>
-                    <span>Коллажей: {collageItems.length}</span>
+                <CardContent className="flex flex-wrap items-center gap-6 pt-6">
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand/10">
+                            <ImageIcon className="h-5 w-5 text-brand" />
+                        </div>
+                        <div>
+                            <p className="text-sm font-medium">Фотографии</p>
+                            <p className="text-xs text-muted-foreground">
+                                Всего: {galleryItems.length} · Активных: {activeGalleryCount}
+                            </p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-950/30">
+                            <Layers className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+                        </div>
+                        <div>
+                            <p className="text-sm font-medium">Коллажи</p>
+                            <p className="text-xs text-muted-foreground">
+                                Всего: {collageItems.length}
+                            </p>
+                        </div>
+                    </div>
                 </CardContent>
             </Card>
-
-            {notice ? (
-                <p
-                    className={`rounded-lg px-3 py-2 text-sm ${
-                        notice.tone === 'success'
-                            ? 'bg-emerald-100 text-emerald-700'
-                            : 'bg-red-100 text-red-700'
-                    }`}
-                >
-                    {notice.text}
-                </p>
-            ) : null}
 
             <div className="grid gap-4 xl:grid-cols-2">
                 <Card>
                     <CardHeader>
-                        <CardTitle>Изображения</CardTitle>
+                        <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand/10">
+                                <ImageIcon className="h-5 w-5 text-brand" />
+                            </div>
+                            <CardTitle>Изображения</CardTitle>
+                        </div>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <form
-                            className="grid gap-3"
+                            className="grid gap-4"
                             onSubmit={createGalleryItem}
                         >
-                            <Input
-                                placeholder="Путь/URL изображения"
-                                value={itemForm.filename}
-                                onChange={(event) =>
-                                    setItemForm((prev) => ({
-                                        ...prev,
-                                        filename: event.target.value,
-                                    }))
-                                }
-                                required
-                            />
-                            <Input
-                                placeholder="Заголовок"
-                                value={itemForm.title}
-                                onChange={(event) =>
-                                    setItemForm((prev) => ({
-                                        ...prev,
-                                        title: event.target.value,
-                                    }))
-                                }
-                            />
-                            <Textarea
-                                rows={3}
-                                placeholder="Описание"
-                                value={itemForm.description}
-                                onChange={(event) =>
-                                    setItemForm((prev) => ({
-                                        ...prev,
-                                        description: event.target.value,
-                                    }))
-                                }
-                            />
-                            <Input
-                                placeholder="Alt-текст"
-                                value={itemForm.altText}
-                                onChange={(event) =>
-                                    setItemForm((prev) => ({
-                                        ...prev,
-                                        altText: event.target.value,
-                                    }))
-                                }
-                            />
-                            <div className="grid gap-3 sm:grid-cols-2">
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-medium text-muted-foreground">Путь/URL изображения *</label>
                                 <Input
-                                    type="number"
-                                    value={itemForm.sortOrder}
+                                    placeholder="Путь/URL изображения"
+                                    value={itemForm.filename}
                                     onChange={(event) =>
                                         setItemForm((prev) => ({
                                             ...prev,
-                                            sortOrder: Number(
-                                                event.target.value,
-                                            ),
+                                            filename: event.target.value,
+                                        }))
+                                    }
+                                    required
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-medium text-muted-foreground">Заголовок</label>
+                                <Input
+                                    placeholder="Заголовок"
+                                    value={itemForm.title}
+                                    onChange={(event) =>
+                                        setItemForm((prev) => ({
+                                            ...prev,
+                                            title: event.target.value,
                                         }))
                                     }
                                 />
-                                <label className="inline-flex h-11 items-center gap-2 rounded-xl border border-border px-3 text-sm">
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-medium text-muted-foreground">Описание</label>
+                                <Textarea
+                                    rows={3}
+                                    placeholder="Описание"
+                                    value={itemForm.description}
+                                    onChange={(event) =>
+                                        setItemForm((prev) => ({
+                                            ...prev,
+                                            description: event.target.value,
+                                        }))
+                                    }
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-medium text-muted-foreground">Alt-текст</label>
+                                <Input
+                                    placeholder="Alt-текст"
+                                    value={itemForm.altText}
+                                    onChange={(event) =>
+                                        setItemForm((prev) => ({
+                                            ...prev,
+                                            altText: event.target.value,
+                                        }))
+                                    }
+                                />
+                            </div>
+                            <div className="grid gap-3 sm:grid-cols-2">
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-medium text-muted-foreground">Сортировка</label>
+                                    <Input
+                                        type="number"
+                                        value={itemForm.sortOrder}
+                                        onChange={(event) =>
+                                            setItemForm((prev) => ({
+                                                ...prev,
+                                                sortOrder: Number(
+                                                    event.target.value,
+                                                ),
+                                            }))
+                                        }
+                                    />
+                                </div>
+                                <label className="inline-flex h-11 items-center gap-2 self-end rounded-xl border border-border px-3 text-sm">
                                     <input
                                         type="checkbox"
+                                        className="accent-brand"
                                         checked={itemForm.isActive}
                                         onChange={(event) =>
                                             setItemForm((prev) => ({
@@ -339,14 +391,17 @@ export default function Gallery({ items, collages }: Props) {
                                     Активно
                                 </label>
                             </div>
-                            <Button type="submit">Добавить изображение</Button>
+                            <Button type="submit">
+                                <Plus className="mr-1 h-4 w-4" />
+                                Добавить изображение
+                            </Button>
                         </form>
 
                         <div className="space-y-3">
                             {galleryItems.map((item) => (
                                 <div
                                     key={item.id}
-                                    className="space-y-2 rounded-xl border border-border p-3"
+                                    className="space-y-2 rounded-xl border border-border p-3 transition-shadow hover:shadow-sm"
                                 >
                                     <div className="flex items-center justify-between gap-2">
                                         <p className="text-sm font-semibold">
@@ -371,102 +426,118 @@ export default function Gallery({ items, collages }: Props) {
                                         alt={item.title || `photo-${item.id}`}
                                         className="h-40 w-full rounded-lg object-cover"
                                     />
-                                    <Input
-                                        value={item.filename}
-                                        onChange={(event) =>
-                                            setGalleryItems((prev) =>
-                                                prev.map((row) =>
-                                                    row.id === item.id
-                                                        ? {
-                                                              ...row,
-                                                              filename:
-                                                                  event.target
-                                                                      .value,
-                                                          }
-                                                        : row,
-                                                ),
-                                            )
-                                        }
-                                    />
-                                    <Input
-                                        value={item.title || ''}
-                                        placeholder="Заголовок"
-                                        onChange={(event) =>
-                                            setGalleryItems((prev) =>
-                                                prev.map((row) =>
-                                                    row.id === item.id
-                                                        ? {
-                                                              ...row,
-                                                              title: event
-                                                                  .target.value,
-                                                          }
-                                                        : row,
-                                                ),
-                                            )
-                                        }
-                                    />
-                                    <Textarea
-                                        rows={3}
-                                        value={item.description || ''}
-                                        placeholder="Описание"
-                                        onChange={(event) =>
-                                            setGalleryItems((prev) =>
-                                                prev.map((row) =>
-                                                    row.id === item.id
-                                                        ? {
-                                                              ...row,
-                                                              description:
-                                                                  event.target
-                                                                      .value,
-                                                          }
-                                                        : row,
-                                                ),
-                                            )
-                                        }
-                                    />
-                                    <Input
-                                        value={item.alt_text || ''}
-                                        placeholder="Alt-текст"
-                                        onChange={(event) =>
-                                            setGalleryItems((prev) =>
-                                                prev.map((row) =>
-                                                    row.id === item.id
-                                                        ? {
-                                                              ...row,
-                                                              alt_text:
-                                                                  event.target
-                                                                      .value,
-                                                          }
-                                                        : row,
-                                                ),
-                                            )
-                                        }
-                                    />
-                                    <div className="grid gap-3 sm:grid-cols-2">
+                                    <div className="space-y-1">
+                                        <label className="text-xs text-muted-foreground">Файл</label>
                                         <Input
-                                            type="number"
-                                            value={item.sort_order ?? 0}
+                                            value={item.filename}
                                             onChange={(event) =>
                                                 setGalleryItems((prev) =>
                                                     prev.map((row) =>
                                                         row.id === item.id
                                                             ? {
-                                                                  ...row,
-                                                                  sort_order:
-                                                                      Number(
-                                                                          event
-                                                                              .target
-                                                                              .value,
-                                                                      ),
-                                                              }
+                                                                ...row,
+                                                                filename:
+                                                                    event.target
+                                                                        .value,
+                                                            }
                                                             : row,
                                                     ),
                                                 )
                                             }
                                         />
-                                        <label className="inline-flex h-11 items-center gap-2 rounded-xl border border-border px-3 text-sm">
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-xs text-muted-foreground">Заголовок</label>
+                                        <Input
+                                            value={item.title || ''}
+                                            placeholder="Заголовок"
+                                            onChange={(event) =>
+                                                setGalleryItems((prev) =>
+                                                    prev.map((row) =>
+                                                        row.id === item.id
+                                                            ? {
+                                                                ...row,
+                                                                title: event
+                                                                    .target.value,
+                                                            }
+                                                            : row,
+                                                    ),
+                                                )
+                                            }
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-xs text-muted-foreground">Описание</label>
+                                        <Textarea
+                                            rows={3}
+                                            value={item.description || ''}
+                                            placeholder="Описание"
+                                            onChange={(event) =>
+                                                setGalleryItems((prev) =>
+                                                    prev.map((row) =>
+                                                        row.id === item.id
+                                                            ? {
+                                                                ...row,
+                                                                description:
+                                                                    event.target
+                                                                        .value,
+                                                            }
+                                                            : row,
+                                                    ),
+                                                )
+                                            }
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-xs text-muted-foreground">Alt-текст</label>
+                                        <Input
+                                            value={item.alt_text || ''}
+                                            placeholder="Alt-текст"
+                                            onChange={(event) =>
+                                                setGalleryItems((prev) =>
+                                                    prev.map((row) =>
+                                                        row.id === item.id
+                                                            ? {
+                                                                ...row,
+                                                                alt_text:
+                                                                    event.target
+                                                                        .value,
+                                                            }
+                                                            : row,
+                                                    ),
+                                                )
+                                            }
+                                        />
+                                    </div>
+                                    <div className="grid gap-3 sm:grid-cols-2">
+                                        <div className="space-y-1">
+                                            <label className="text-xs text-muted-foreground">Сортировка</label>
+                                            <Input
+                                                type="number"
+                                                value={item.sort_order ?? 0}
+                                                onChange={(event) =>
+                                                    setGalleryItems((prev) =>
+                                                        prev.map((row) =>
+                                                            row.id === item.id
+                                                                ? {
+                                                                    ...row,
+                                                                    sort_order:
+                                                                        Number(
+                                                                            event
+                                                                                .target
+                                                                                .value,
+                                                                        ),
+                                                                }
+                                                                : row,
+                                                        ),
+                                                    )
+                                                }
+                                            />
+                                        </div>
+                                        <label className="inline-flex h-11 items-center gap-2 self-end rounded-xl border border-border px-3 text-sm">
                                             <input
                                                 type="checkbox"
+                                                className="accent-brand"
                                                 checked={
                                                     item.is_active !== false
                                                 }
@@ -475,12 +546,12 @@ export default function Gallery({ items, collages }: Props) {
                                                         prev.map((row) =>
                                                             row.id === item.id
                                                                 ? {
-                                                                      ...row,
-                                                                      is_active:
-                                                                          event
-                                                                              .target
-                                                                              .checked,
-                                                                  }
+                                                                    ...row,
+                                                                    is_active:
+                                                                        event
+                                                                            .target
+                                                                            .checked,
+                                                                }
                                                                 : row,
                                                         ),
                                                     )
@@ -489,7 +560,7 @@ export default function Gallery({ items, collages }: Props) {
                                             Активно
                                         </label>
                                     </div>
-                                    <div className="flex gap-2">
+                                    <div className="flex gap-2 border-t border-border/50 pt-3">
                                         <Button
                                             type="button"
                                             size="sm"
@@ -513,6 +584,7 @@ export default function Gallery({ items, collages }: Props) {
                                                 deleteGalleryItem(item.id)
                                             }
                                         >
+                                            <Trash2 className="mr-1 h-3.5 w-3.5" />
                                             Удалить
                                         </Button>
                                     </div>
@@ -524,51 +596,68 @@ export default function Gallery({ items, collages }: Props) {
 
                 <Card>
                     <CardHeader>
-                        <CardTitle>Коллажи</CardTitle>
+                        <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-950/30">
+                                <Layers className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+                            </div>
+                            <CardTitle>Коллажи</CardTitle>
+                        </div>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        <form className="grid gap-3" onSubmit={createCollage}>
-                            <Input
-                                placeholder="Название коллажа"
-                                value={collageForm.title}
-                                onChange={(event) =>
-                                    setCollageForm((prev) => ({
-                                        ...prev,
-                                        title: event.target.value,
-                                    }))
-                                }
-                                required
-                            />
-                            <Input
-                                placeholder="Главное изображение (путь/URL)"
-                                value={collageForm.mainImage}
-                                onChange={(event) =>
-                                    setCollageForm((prev) => ({
-                                        ...prev,
-                                        mainImage: event.target.value,
-                                    }))
-                                }
-                                required
-                            />
-                            <Textarea
-                                rows={4}
-                                placeholder="Фото построчно (каждый путь с новой строки)"
-                                value={collageForm.photos}
-                                onChange={(event) =>
-                                    setCollageForm((prev) => ({
-                                        ...prev,
-                                        photos: event.target.value,
-                                    }))
-                                }
-                            />
-                            <Button type="submit">Добавить коллаж</Button>
+                        <form className="grid gap-4" onSubmit={createCollage}>
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-medium text-muted-foreground">Название коллажа *</label>
+                                <Input
+                                    placeholder="Название коллажа"
+                                    value={collageForm.title}
+                                    onChange={(event) =>
+                                        setCollageForm((prev) => ({
+                                            ...prev,
+                                            title: event.target.value,
+                                        }))
+                                    }
+                                    required
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-medium text-muted-foreground">Главное изображение *</label>
+                                <Input
+                                    placeholder="Главное изображение (путь/URL)"
+                                    value={collageForm.mainImage}
+                                    onChange={(event) =>
+                                        setCollageForm((prev) => ({
+                                            ...prev,
+                                            mainImage: event.target.value,
+                                        }))
+                                    }
+                                    required
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-medium text-muted-foreground">Фото (каждый путь с новой строки)</label>
+                                <Textarea
+                                    rows={4}
+                                    placeholder="Фото построчно (каждый путь с новой строки)"
+                                    value={collageForm.photos}
+                                    onChange={(event) =>
+                                        setCollageForm((prev) => ({
+                                            ...prev,
+                                            photos: event.target.value,
+                                        }))
+                                    }
+                                />
+                            </div>
+                            <Button type="submit">
+                                <Plus className="mr-1 h-4 w-4" />
+                                Добавить коллаж
+                            </Button>
                         </form>
 
                         <div className="space-y-3">
                             {collageItems.map((item) => (
                                 <div
                                     key={item.id}
-                                    className="space-y-2 rounded-xl border border-border p-3"
+                                    className="space-y-2 rounded-xl border border-border p-3 transition-shadow hover:shadow-sm"
                                 >
                                     <div className="flex items-center justify-between gap-2">
                                         <p className="text-sm font-semibold">
@@ -586,86 +675,98 @@ export default function Gallery({ items, collages }: Props) {
                                         alt={item.title}
                                         className="h-40 w-full rounded-lg object-cover"
                                     />
-                                    <Input
-                                        value={item.title}
-                                        onChange={(event) =>
-                                            setCollageItems((prev) =>
-                                                prev.map((row) =>
-                                                    row.id === item.id
-                                                        ? {
-                                                              ...row,
-                                                              title: event
-                                                                  .target.value,
-                                                          }
-                                                        : row,
-                                                ),
-                                            )
-                                        }
-                                    />
-                                    <Input
-                                        value={item.main_image}
-                                        onChange={(event) =>
-                                            setCollageItems((prev) =>
-                                                prev.map((row) =>
-                                                    row.id === item.id
-                                                        ? {
-                                                              ...row,
-                                                              main_image:
-                                                                  event.target
-                                                                      .value,
-                                                          }
-                                                        : row,
-                                                ),
-                                            )
-                                        }
-                                    />
-                                    <Textarea
-                                        rows={4}
-                                        value={(item.photos || []).join('\n')}
-                                        placeholder="Фото построчно"
-                                        onChange={(event) =>
-                                            setCollageItems((prev) =>
-                                                prev.map((row) =>
-                                                    row.id === item.id
-                                                        ? {
-                                                              ...row,
-                                                              photos: event.target.value
-                                                                  .split('\n')
-                                                                  .map(
-                                                                      (photo) =>
-                                                                          photo.trim(),
-                                                                  )
-                                                                  .filter(
-                                                                      Boolean,
-                                                                  ),
-                                                          }
-                                                        : row,
-                                                ),
-                                            )
-                                        }
-                                    />
-                                    <Input
-                                        type="number"
-                                        value={item.photo_count ?? 0}
-                                        onChange={(event) =>
-                                            setCollageItems((prev) =>
-                                                prev.map((row) =>
-                                                    row.id === item.id
-                                                        ? {
-                                                              ...row,
-                                                              photo_count:
-                                                                  Number(
-                                                                      event
-                                                                          .target
-                                                                          .value,
-                                                                  ),
-                                                          }
-                                                        : row,
-                                                ),
-                                            )
-                                        }
-                                    />
-                                    <div className="flex gap-2">
+                                    <div className="space-y-1">
+                                        <label className="text-xs text-muted-foreground">Название</label>
+                                        <Input
+                                            value={item.title}
+                                            onChange={(event) =>
+                                                setCollageItems((prev) =>
+                                                    prev.map((row) =>
+                                                        row.id === item.id
+                                                            ? {
+                                                                ...row,
+                                                                title: event
+                                                                    .target.value,
+                                                            }
+                                                            : row,
+                                                    ),
+                                                )
+                                            }
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-xs text-muted-foreground">Главное изображение</label>
+                                        <Input
+                                            value={item.main_image}
+                                            onChange={(event) =>
+                                                setCollageItems((prev) =>
+                                                    prev.map((row) =>
+                                                        row.id === item.id
+                                                            ? {
+                                                                ...row,
+                                                                main_image:
+                                                                    event.target
+                                                                        .value,
+                                                            }
+                                                            : row,
+                                                    ),
+                                                )
+                                            }
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-xs text-muted-foreground">Фото (построчно)</label>
+                                        <Textarea
+                                            rows={4}
+                                            value={(item.photos || []).join('\n')}
+                                            placeholder="Фото построчно"
+                                            onChange={(event) =>
+                                                setCollageItems((prev) =>
+                                                    prev.map((row) =>
+                                                        row.id === item.id
+                                                            ? {
+                                                                ...row,
+                                                                photos: event.target.value
+                                                                    .split('\n')
+                                                                    .map(
+                                                                        (photo) =>
+                                                                            photo.trim(),
+                                                                    )
+                                                                    .filter(
+                                                                        Boolean,
+                                                                    ),
+                                                            }
+                                                            : row,
+                                                    ),
+                                                )
+                                            }
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-xs text-muted-foreground">Кол-во фото</label>
+                                        <Input
+                                            type="number"
+                                            value={item.photo_count ?? 0}
+                                            onChange={(event) =>
+                                                setCollageItems((prev) =>
+                                                    prev.map((row) =>
+                                                        row.id === item.id
+                                                            ? {
+                                                                ...row,
+                                                                photo_count:
+                                                                    Number(
+                                                                        event
+                                                                            .target
+                                                                            .value,
+                                                                    ),
+                                                            }
+                                                            : row,
+                                                    ),
+                                                )
+                                            }
+                                        />
+                                    </div>
+                                    <div className="flex gap-2 border-t border-border/50 pt-3">
                                         <Button
                                             type="button"
                                             size="sm"
@@ -689,6 +790,7 @@ export default function Gallery({ items, collages }: Props) {
                                                 deleteCollage(item.id)
                                             }
                                         >
+                                            <Trash2 className="mr-1 h-3.5 w-3.5" />
                                             Удалить
                                         </Button>
                                     </div>

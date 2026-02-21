@@ -1,5 +1,6 @@
 import { AdminReplyForm } from '@/features/support/ui/AdminReplyForm';
 import { apiPatch } from '@/shared/api/http';
+import { AdminSelect } from '@/shared/ui/admin-select';
 import {
     getMessageSourceLabel,
     getSenderTypeLabel,
@@ -7,38 +8,66 @@ import {
 } from '@/shared/lib/admin-labels';
 import { formatDate, formatShortDate } from '@/shared/lib/utils';
 import { Badge } from '@/shared/ui/badge';
-import { Button } from '@/shared/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
 import { Input } from '@/shared/ui/input';
 import { AdminLayout } from '@/widgets/admin/AdminLayout';
-import { useEffect, useMemo, useState } from 'react';
+import {
+    AlertCircle,
+    CheckCircle2,
+    Clock,
+    HeadphonesIcon,
+    Inbox,
+    MessageCircle,
+    Search,
+    User,
+} from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
-type Message = {
+type AdminItem = {
     id: number;
-    sender_type: 'guest' | 'user' | 'admin';
-    source: 'web' | 'admin' | 'telegram';
-    body: string;
-    sent_at?: string | null;
+    name?: string | null;
+    email: string;
 };
 
-type Conversation = {
+type MessageItem = {
     id: number;
+    body: string;
+    sender_type: string;
+    sent_at?: string | null;
+    source?: string;
+};
+
+type TicketItem = {
+    id: number;
+    subject?: string | null;
     status: string;
+    priority?: string | null;
+    created_at?: string | null;
+    updated_at?: string | null;
     assigned_admin_id?: number | null;
-    assignedAdmin?: {
-        id: number;
-        name?: string | null;
-        email?: string | null;
-    } | null;
-    user?: { id: number; name?: string | null; email?: string | null } | null;
-    guest_token?: string | null;
-    last_message_at?: string | null;
-    messages?: Message[];
+    assignedAdmin?: AdminItem | null;
+    user?: { name?: string | null; email: string };
+    messages?: MessageItem[];
 };
 
 type Props = {
-    items: Conversation[];
-    admins: Array<{ id: number; name?: string | null; email: string }>;
+    tickets?: TicketItem[];
+    items?: TicketItem[];
+    admins?: AdminItem[];
+};
+
+type SupportRealtimeEvent = {
+    conversation?: {
+        id?: number;
+        status?: string;
+        lastMessageAt?: string | null;
+    };
+    message?: {
+        id?: number;
+        body?: string;
+        senderType?: string;
+        source?: string;
+        sentAt?: string | null;
+    };
 };
 
 function getErrorMessage(error: unknown): string {
@@ -47,444 +76,455 @@ function getErrorMessage(error: unknown): string {
         : 'Не удалось выполнить запрос.';
 }
 
-export default function Support({ items, admins }: Props) {
-    const [conversations, setConversations] = useState<Conversation[]>(items);
-    const [query, setQuery] = useState('');
-    const [statusFilter, setStatusFilter] = useState('all');
-    const [activeId, setActiveId] = useState<number | null>(
-        items[0]?.id ?? null,
+function normalizeTicket(ticket: TicketItem): TicketItem {
+    return {
+        ...ticket,
+        assigned_admin_id: ticket.assigned_admin_id ?? ticket.assignedAdmin?.id ?? null,
+        messages: ticket.messages || [],
+    };
+}
+
+function toRealtimeMessage(event: SupportRealtimeEvent): MessageItem | null {
+    if (!event.message?.id || !event.message?.body) {
+        return null;
+    }
+
+    return {
+        id: event.message.id,
+        body: event.message.body,
+        sender_type: event.message.senderType ?? 'system',
+        source: event.message.source,
+        sent_at: event.message.sentAt ?? null,
+    };
+}
+
+function getLastMessagePreview(ticket: TicketItem): string {
+    const msgs = ticket.messages || [];
+    if (msgs.length === 0) return 'Нет сообщений';
+    const last = msgs[msgs.length - 1];
+    return last.body.length > 60 ? last.body.slice(0, 60) + '…' : last.body;
+}
+
+function getStatusDotColor(status: string): string {
+    switch (status) {
+        case 'open':
+            return 'bg-emerald-500';
+        case 'in_progress':
+            return 'bg-amber-500';
+        case 'resolved':
+            return 'bg-blue-500';
+        case 'closed':
+            return 'bg-gray-400';
+        default:
+            return 'bg-gray-400';
+    }
+}
+
+export default function Support({
+    tickets,
+    items,
+    admins = [],
+}: Props) {
+    const [list, setList] = useState<TicketItem[]>(() =>
+        (tickets ?? items ?? []).map(normalizeTicket),
     );
-    const [savingConversationId, setSavingConversationId] = useState<
-        number | null
-    >(null);
+    const [query, setQuery] = useState('');
+    const [statusFilter, setStatusFilter] = useState('');
+    const [savingId, setSavingId] = useState<number | null>(null);
+    const [selectedId, setSelectedId] = useState<number | null>(null);
     const [notice, setNotice] = useState<{
         tone: 'success' | 'error';
         text: string;
     } | null>(null);
-
-    const statusOptions = useMemo(
-        () =>
-            Array.from(
-                new Set(conversations.map((item) => item.status.toLowerCase())),
-            ),
-        [conversations],
-    );
-
-    const filteredConversations = useMemo(() => {
-        const normalizedQuery = query.trim().toLowerCase();
-
-        return conversations.filter((conversation) => {
-            const statusMatches =
-                statusFilter === 'all' ||
-                conversation.status.toLowerCase() === statusFilter;
-            if (!statusMatches) {
-                return false;
-            }
-
-            if (!normalizedQuery) {
-                return true;
-            }
-
-            const haystack = [
-                conversation.id,
-                conversation.user?.name,
-                conversation.user?.email,
-                conversation.guest_token,
-                conversation.messages?.at(-1)?.body,
-            ]
-                .join(' ')
-                .toLowerCase();
-
-            return haystack.includes(normalizedQuery);
-        });
-    }, [conversations, query, statusFilter]);
-
-    useEffect(() => {
-        if (!filteredConversations.length) {
-            if (activeId !== null) {
-                setActiveId(null);
-            }
-            return;
-        }
-
-        if (
-            activeId === null ||
-            !filteredConversations.some(
-                (conversation) => conversation.id === activeId,
-            )
-        ) {
-            setActiveId(filteredConversations[0].id);
-        }
-    }, [activeId, filteredConversations]);
-
-    const activeConversation = useMemo(
-        () =>
-            conversations.find(
-                (conversation) => conversation.id === activeId,
-            ) ?? null,
-        [activeId, conversations],
-    );
-
-    const updateConversation = async (conversation: Conversation) => {
-        setNotice(null);
-        setSavingConversationId(conversation.id);
-
-        try {
-            const payload = await apiPatch<{ ok: boolean; item: Conversation }>(
-                `/api/v1/admin/support/conversations/${conversation.id}`,
-                {
-                    status: conversation.status,
-                    assignedAdminId: conversation.assigned_admin_id || null,
-                },
-            );
-
-            setConversations((prev) =>
-                prev.map((row) =>
-                    row.id === conversation.id ? payload.item : row,
-                ),
-            );
-            setNotice({
-                tone: 'success',
-                text: `Диалог #${conversation.id} обновлён.`,
-            });
-        } catch (error) {
-            setNotice({ tone: 'error', text: getErrorMessage(error) });
-        } finally {
-            setSavingConversationId(null);
-        }
-    };
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         if (!window.Echo) {
             return;
         }
 
-        const channel = window.Echo.private('support.admin');
-        channel.listen(
-            '.support.message.created',
-            (event: { conversation: { id: number }; message: Message }) => {
-                setConversations((prev) => {
-                    return prev.map((conversation) => {
-                        if (conversation.id !== event.conversation.id) {
-                            return conversation;
-                        }
+        const channelName = 'support.admin';
+        const channel = window.Echo.private(channelName);
 
-                        const messages = conversation.messages || [];
-                        if (
-                            messages.some(
-                                (item) => item.id === event.message.id,
-                            )
-                        ) {
-                            return conversation;
-                        }
+        channel.listen('.support.message.created', (event: SupportRealtimeEvent) => {
+            const conversationId = event.conversation?.id;
+            const message = toRealtimeMessage(event);
 
-                        return {
-                            ...conversation,
-                            status: 'open',
-                            last_message_at:
-                                event.message.sent_at ||
-                                conversation.last_message_at,
-                            messages: [...messages, event.message],
-                        };
-                    });
-                });
-            },
-        );
+            if (!conversationId || !message) {
+                return;
+            }
+
+            setList((prev) =>
+                prev.map((ticket) => {
+                    if (ticket.id !== conversationId) {
+                        return ticket;
+                    }
+
+                    if ((ticket.messages || []).some((item) => item.id === message.id)) {
+                        return ticket;
+                    }
+
+                    return {
+                        ...ticket,
+                        status: event.conversation?.status ?? ticket.status,
+                        updated_at: event.conversation?.lastMessageAt ?? new Date().toISOString(),
+                        messages: [...(ticket.messages || []), message],
+                    };
+                }),
+            );
+        });
 
         return () => {
-            window.Echo?.leave('support.admin');
+            window.Echo?.leave(channelName);
         };
     }, []);
 
+    /* Auto-scroll when messages change for the selected ticket */
+    const selectedTicket = useMemo(
+        () => list.find((t) => t.id === selectedId) ?? null,
+        [list, selectedId],
+    );
+
+    useEffect(() => {
+        if (scrollContainerRef.current) {
+            scrollContainerRef.current.scrollTo({
+                top: scrollContainerRef.current.scrollHeight,
+                behavior: 'smooth',
+            });
+        }
+    }, [selectedTicket?.messages?.length]);
+
+    const filteredTickets = useMemo(() => {
+        let result = list;
+
+        const normalizedQuery = query.trim().toLowerCase();
+        if (normalizedQuery) {
+            result = result.filter((ticket) =>
+                [
+                    ticket.subject,
+                    ticket.user?.email,
+                    ticket.user?.name,
+                    ticket.status,
+                ]
+                    .join(' ')
+                    .toLowerCase()
+                    .includes(normalizedQuery),
+            );
+        }
+
+        if (statusFilter) {
+            result = result.filter(
+                (ticket) => ticket.status === statusFilter,
+            );
+        }
+
+        return result;
+    }, [list, query, statusFilter]);
+
+    const statusCounts = useMemo(() => {
+        return list.reduce<Record<string, number>>((acc, ticket) => {
+            const key = ticket.status || 'unknown';
+            acc[key] = (acc[key] ?? 0) + 1;
+            return acc;
+        }, {});
+    }, [list]);
+
+    const updateTicket = async (
+        ticket: TicketItem,
+        patch: { status?: string; assignedAdminId?: number | null },
+    ) => {
+        setNotice(null);
+        setSavingId(ticket.id);
+
+        try {
+            const payload = await apiPatch<{
+                ok: boolean;
+                item: TicketItem;
+            }>(`/api/v1/admin/support/conversations/${ticket.id}`, {
+                ...patch,
+            });
+
+            setList((prev) =>
+                prev.map((row) =>
+                    row.id === ticket.id
+                        ? normalizeTicket(payload.item)
+                        : row,
+                ),
+            );
+            setNotice({
+                tone: 'success',
+                text: `Тикет #${ticket.id} обновлён.`,
+            });
+        } catch (error) {
+            setNotice({ tone: 'error', text: getErrorMessage(error) });
+        } finally {
+            setSavingId(null);
+        }
+    };
+
+    const handleReplySuccess = (ticketId: number, newMessage: MessageItem) => {
+        setList((prev) =>
+            prev.map((row) =>
+                row.id === ticketId
+                    ? {
+                        ...row,
+                        status: 'open',
+                        updated_at: new Date().toISOString(),
+                        messages: (row.messages || []).some(
+                            (item) => item.id === newMessage.id,
+                        )
+                            ? row.messages || []
+                            : [...(row.messages || []), newMessage],
+                    }
+                    : row,
+            ),
+        );
+        setNotice({ tone: 'success', text: 'Ответ отправлен.' });
+    };
+
     return (
         <AdminLayout title="Поддержка">
+            {/* Toast notification */}
             {notice ? (
-                <p
-                    className={`rounded-lg px-3 py-2 text-sm ${
-                        notice.tone === 'success'
-                            ? 'bg-emerald-100 text-emerald-700'
-                            : 'bg-red-100 text-red-700'
-                    }`}
+                <div
+                    className={`mb-4 flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium ${notice.tone === 'success'
+                        ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400'
+                        : 'bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400'
+                        }`}
                 >
+                    {notice.tone === 'success' ? (
+                        <CheckCircle2 className="h-4 w-4 shrink-0" />
+                    ) : (
+                        <AlertCircle className="h-4 w-4 shrink-0" />
+                    )}
                     {notice.text}
-                </p>
+                </div>
             ) : null}
-            <div className="grid gap-4 lg:grid-cols-[360px_1fr]">
-                <Card>
-                    <CardHeader className="space-y-3">
-                        <CardTitle>Диалоги</CardTitle>
-                        <Input
-                            value={query}
-                            placeholder="Поиск по email, токену, тексту"
-                            onChange={(event) => setQuery(event.target.value)}
-                        />
-                        <div className="flex flex-wrap gap-2">
-                            <button
-                                type="button"
-                                onClick={() => setStatusFilter('all')}
-                                className={`rounded-lg border px-3 py-1.5 text-xs font-medium ${
-                                    statusFilter === 'all'
-                                        ? 'border-brand bg-brand/10 text-brand-dark'
-                                        : 'border-border text-muted-foreground'
-                                }`}
-                            >
-                                Все
-                            </button>
-                            {statusOptions.map((status) => {
-                                const meta = getSupportStatusMeta(status);
+
+            {/* Two-panel messenger */}
+            <div className="flex h-[calc(100vh-180px)] min-h-[500px] overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm">
+                {/* ─── Left: Ticket List ─── */}
+                <div className="flex w-80 shrink-0 flex-col border-r border-border/60 lg:w-96">
+                    {/* Search & filter header */}
+                    <div className="space-y-2 border-b border-border/50 bg-surface/40 p-3">
+                        <div className="flex items-center gap-2">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand/10">
+                                <HeadphonesIcon className="h-4 w-4 text-brand" />
+                            </div>
+                            <div className="flex-1">
+                                <p className="text-xs font-semibold">
+                                    Тикетов: {list.length}
+                                </p>
+                                <p className="text-[10px] text-muted-foreground">
+                                    Открыты: {statusCounts.open ?? 0} · В работе: {statusCounts.in_progress ?? 0}
+                                </p>
+                            </div>
+                        </div>
+                        <div className="relative">
+                            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                            <Input
+                                className="h-8 pl-8 text-xs"
+                                value={query}
+                                placeholder="Поиск..."
+                                onChange={(event) => setQuery(event.target.value)}
+                            />
+                        </div>
+                        <AdminSelect
+                            className="h-8 w-full text-xs"
+                            value={statusFilter}
+                            onChange={(event) => setStatusFilter(event.target.value)}
+                        >
+                            <option value="">Все статусы</option>
+                            <option value="open">Открыт</option>
+                            <option value="in_progress">В работе</option>
+                            <option value="resolved">Решён</option>
+                            <option value="closed">Закрыт</option>
+                        </AdminSelect>
+                    </div>
+
+                    {/* Ticket list */}
+                    <div className="flex-1 overflow-y-auto">
+                        {filteredTickets.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center gap-2 py-12 text-center text-muted-foreground">
+                                <Inbox className="h-8 w-8 opacity-40" />
+                                <p className="text-sm">Тикеты не найдены</p>
+                            </div>
+                        ) : (
+                            filteredTickets.map((ticket) => {
+                                const isActive = selectedId === ticket.id;
                                 return (
                                     <button
                                         type="button"
-                                        key={status}
-                                        onClick={() => setStatusFilter(status)}
-                                        className={`rounded-lg border px-3 py-1.5 text-xs font-medium ${
-                                            statusFilter === status
-                                                ? 'border-brand bg-brand/10 text-brand-dark'
-                                                : 'border-border text-muted-foreground'
-                                        }`}
+                                        key={ticket.id}
+                                        onClick={() => setSelectedId(ticket.id)}
+                                        className={`group flex w-full items-start gap-3 border-b border-border/30 px-3 py-3 text-left transition-colors ${isActive
+                                            ? 'bg-brand/8 border-l-2 border-l-brand'
+                                            : 'hover:bg-surface/60'
+                                            }`}
                                     >
-                                        {meta.label}
+                                        {/* Avatar */}
+                                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand/20 to-brand-dark/20 text-xs font-bold text-brand-dark">
+                                            {(ticket.user?.name || ticket.user?.email || '?').charAt(0).toUpperCase()}
+                                        </div>
+
+                                        {/* Content */}
+                                        <div className="min-w-0 flex-1">
+                                            <div className="flex items-center justify-between gap-1">
+                                                <p className="truncate text-sm font-semibold">
+                                                    {ticket.user?.name || ticket.user?.email || `Тикет #${ticket.id}`}
+                                                </p>
+                                                <div className={`h-2 w-2 shrink-0 rounded-full ${getStatusDotColor(ticket.status)}`} />
+                                            </div>
+                                            <p className="truncate text-xs text-muted-foreground">
+                                                {ticket.subject || getLastMessagePreview(ticket)}
+                                            </p>
+                                            <div className="mt-1 flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                                                <Clock className="h-2.5 w-2.5" />
+                                                {formatShortDate(ticket.updated_at)}
+                                                <span className="ml-auto text-[10px] opacity-60">
+                                                    {(ticket.messages || []).length} сообщ.
+                                                </span>
+                                            </div>
+                                        </div>
                                     </button>
                                 );
-                            })}
-                        </div>
-                    </CardHeader>
-                    <CardContent className="space-y-2">
-                        {filteredConversations.map((conversation) => {
-                            const isActive = conversation.id === activeId;
-                            const meta = getSupportStatusMeta(
-                                conversation.status,
-                            );
-                            const lastMessage =
-                                conversation.messages?.at(-1)?.body || '';
+                            })
+                        )}
+                    </div>
+                </div>
 
-                            return (
-                                <button
-                                    type="button"
-                                    key={conversation.id}
-                                    onClick={() => setActiveId(conversation.id)}
-                                    className={`w-full rounded-xl border p-3 text-left transition ${
-                                        isActive
-                                            ? 'border-brand bg-brand/5'
-                                            : 'border-border bg-card hover:bg-surface/70'
-                                    }`}
-                                >
-                                    <div className="flex items-start justify-between gap-2">
-                                        <div>
-                                            <p className="font-medium">
-                                                Диалог #{conversation.id}
-                                            </p>
-                                            <p className="text-xs text-muted-foreground">
-                                                {conversation.user?.email ||
-                                                    `Гость ${conversation.guest_token?.slice(0, 8) || ''}`}
-                                            </p>
-                                        </div>
-                                        <Badge variant={meta.tone}>
-                                            {meta.label}
-                                        </Badge>
-                                    </div>
-                                    <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">
-                                        {lastMessage || 'Сообщений пока нет'}
-                                    </p>
-                                    <p className="mt-1 text-xs text-muted-foreground">
-                                        Ответственный:{' '}
-                                        {conversation.assignedAdmin?.name ||
-                                            conversation.assignedAdmin?.email ||
-                                            'не назначен'}
-                                    </p>
-                                    <p className="mt-1 text-xs text-muted-foreground">
-                                        {formatShortDate(
-                                            conversation.last_message_at,
-                                        )}
-                                    </p>
-                                </button>
-                            );
-                        })}
-                        {filteredConversations.length === 0 ? (
-                            <p className="rounded-lg border border-border px-3 py-6 text-center text-sm text-muted-foreground">
-                                Диалоги по заданным параметрам не найдены.
-                            </p>
-                        ) : null}
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader>
-                        <CardTitle>
-                            {activeConversation
-                                ? `Диалог #${activeConversation.id}`
-                                : 'Выберите диалог'}
-                        </CardTitle>
-                        {activeConversation ? (
-                            <div className="space-y-3">
-                                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                                    <Badge
-                                        variant={
-                                            getSupportStatusMeta(
-                                                activeConversation.status,
-                                            ).tone
-                                        }
-                                    >
-                                        {
-                                            getSupportStatusMeta(
-                                                activeConversation.status,
-                                            ).label
-                                        }
-                                    </Badge>
-                                    <span>
-                                        Последняя активность:{' '}
-                                        {formatDate(
-                                            activeConversation.last_message_at,
-                                        )}
-                                    </span>
+                {/* ─── Right: Chat Panel ─── */}
+                <div className="flex flex-1 flex-col">
+                    {selectedTicket ? (
+                        <>
+                            {/* Chat header */}
+                            <div className="flex flex-wrap items-center gap-3 border-b border-border/50 bg-surface/30 px-4 py-3">
+                                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-brand/25 to-brand-dark/25 text-sm font-bold text-brand-dark">
+                                    {(selectedTicket.user?.name || selectedTicket.user?.email || '?').charAt(0).toUpperCase()}
                                 </div>
-
-                                <div className="grid gap-2 md:grid-cols-[220px_1fr_auto]">
-                                    <select
-                                        className="h-10 rounded-lg border border-border px-2 text-sm"
-                                        value={activeConversation.status}
+                                <div className="min-w-0 flex-1">
+                                    <p className="font-semibold">
+                                        {selectedTicket.user?.name || selectedTicket.user?.email}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                        #{selectedTicket.id} · {selectedTicket.subject || 'Без темы'}
+                                    </p>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <Badge variant={getSupportStatusMeta(selectedTicket.status).tone}>
+                                        {getSupportStatusMeta(selectedTicket.status).label}
+                                    </Badge>
+                                    <AdminSelect
+                                        className="h-8 w-36 text-xs"
+                                        value={selectedTicket.status}
+                                        disabled={savingId === selectedTicket.id}
                                         onChange={(event) =>
-                                            setConversations((prev) =>
-                                                prev.map((row) =>
-                                                    row.id ===
-                                                    activeConversation.id
-                                                        ? {
-                                                              ...row,
-                                                              status: event
-                                                                  .target.value,
-                                                          }
-                                                        : row,
-                                                ),
-                                            )
+                                            updateTicket(selectedTicket, { status: event.target.value })
                                         }
                                     >
                                         <option value="open">Открыт</option>
-                                        <option value="in_progress">
-                                            В работе
-                                        </option>
-                                        <option value="closed">Закрыт</option>
+                                        <option value="in_progress">В работе</option>
                                         <option value="resolved">Решён</option>
-                                    </select>
-                                    <select
-                                        className="h-10 rounded-lg border border-border px-2 text-sm"
-                                        value={
-                                            activeConversation.assigned_admin_id ??
-                                            ''
-                                        }
+                                        <option value="closed">Закрыт</option>
+                                    </AdminSelect>
+                                    <AdminSelect
+                                        className="h-8 w-44 text-xs"
+                                        value={selectedTicket.assigned_admin_id ?? ''}
+                                        disabled={savingId === selectedTicket.id}
                                         onChange={(event) =>
-                                            setConversations((prev) =>
-                                                prev.map((row) =>
-                                                    row.id ===
-                                                    activeConversation.id
-                                                        ? {
-                                                              ...row,
-                                                              assigned_admin_id:
-                                                                  event.target
-                                                                      .value
-                                                                      ? Number(
-                                                                            event
-                                                                                .target
-                                                                                .value,
-                                                                        )
-                                                                      : null,
-                                                              assignedAdmin:
-                                                                  event.target
-                                                                      .value
-                                                                      ? admins.find(
-                                                                            (
-                                                                                admin,
-                                                                            ) =>
-                                                                                admin.id ===
-                                                                                Number(
-                                                                                    event
-                                                                                        .target
-                                                                                        .value,
-                                                                                ),
-                                                                        ) ||
-                                                                        null
-                                                                      : null,
-                                                          }
-                                                        : row,
-                                                ),
-                                            )
+                                            updateTicket(selectedTicket, {
+                                                assignedAdminId:
+                                                    event.target.value === ''
+                                                        ? null
+                                                        : Number(event.target.value),
+                                            })
                                         }
                                     >
-                                        <option value="">
-                                            Админ не назначен
-                                        </option>
+                                        <option value="">Без ответств.</option>
                                         {admins.map((admin) => (
-                                            <option
-                                                key={admin.id}
-                                                value={admin.id}
-                                            >
+                                            <option key={admin.id} value={admin.id}>
                                                 {admin.name || admin.email}
                                             </option>
                                         ))}
-                                    </select>
-                                    <Button
-                                        type="button"
-                                        size="sm"
-                                        disabled={
-                                            savingConversationId ===
-                                            activeConversation.id
-                                        }
-                                        onClick={() =>
-                                            updateConversation(
-                                                activeConversation,
-                                            )
-                                        }
-                                    >
-                                        Сохранить
-                                    </Button>
+                                    </AdminSelect>
                                 </div>
                             </div>
-                        ) : null}
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="max-h-[560px] space-y-2 overflow-y-auto rounded-xl border border-border p-3">
-                            {(activeConversation?.messages || []).map(
-                                (message) => (
-                                    <div
-                                        key={message.id}
-                                        className={`max-w-[88%] rounded-lg p-3 text-sm ${
-                                            message.sender_type === 'admin'
-                                                ? 'ml-auto bg-emerald-100'
-                                                : 'bg-surface/80'
-                                        }`}
-                                    >
-                                        <p className="whitespace-pre-wrap">
-                                            {message.body}
-                                        </p>
-                                        <p className="mt-2 text-xs text-muted-foreground">
-                                            {getSenderTypeLabel(
-                                                message.sender_type,
-                                            )}{' '}
-                                            ·{' '}
-                                            {getMessageSourceLabel(
-                                                message.source,
-                                            )}{' '}
-                                            · {formatDate(message.sent_at)}
-                                        </p>
-                                    </div>
-                                ),
-                            )}
-                            {!activeConversation?.messages?.length ? (
-                                <p className="py-6 text-center text-sm text-muted-foreground">
-                                    В этом диалоге пока нет сообщений.
-                                </p>
-                            ) : null}
-                        </div>
 
-                        {activeConversation ? (
+                            {/* Messages */}
+                            <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-4 flex flex-col">
+                                <div className="mx-auto w-full max-w-2xl flex-1 flex flex-col pb-2">
+                                    {(selectedTicket.messages || []).length === 0 ? (
+                                        <p className="py-10 text-center text-sm text-muted-foreground">
+                                            Нет сообщений в этом тикете.
+                                        </p>
+                                    ) : (
+                                        (selectedTicket.messages || []).map((msg, index, arr) => {
+                                            const isAdmin = msg.sender_type === 'admin';
+                                            const isConsecutive = index > 0 && arr[index - 1].sender_type === msg.sender_type;
+
+                                            return (
+                                                <div
+                                                    key={msg.id}
+                                                    className={`flex w-full ${isAdmin ? 'justify-end' : 'justify-start'} ${isConsecutive ? 'mt-1' : 'mt-4'}`}
+                                                >
+                                                    <div className={`flex flex-col max-w-[85%] sm:max-w-[75%] ${isAdmin ? 'items-end' : 'items-start'}`}>
+                                                        {/* Header only shown for the first message in a consecutive block */}
+                                                        {!isConsecutive && (
+                                                            <div className={`mb-1.5 flex items-center gap-2 text-[11px] ${isAdmin ? 'flex-row-reverse text-brand-dark dark:text-brand' : 'text-muted-foreground'}`}>
+                                                                <span className="font-semibold">{getSenderTypeLabel(msg.sender_type)}</span>
+                                                                {msg.source && (
+                                                                    <>
+                                                                        <span className="h-1 w-1 rounded-full bg-border"></span>
+                                                                        <span className="opacity-70">{getMessageSourceLabel(msg.source)}</span>
+                                                                    </>
+                                                                )}
+                                                            </div>
+                                                        )}
+
+                                                        {/* Bubble */}
+                                                        <div
+                                                            className={`relative px-4 py-3 text-sm shadow-sm transition-all ${isAdmin
+                                                                ? `bg-brand text-white dark:bg-brand-dark dark:text-background ${isConsecutive ? 'rounded-2xl rounded-tr-sm' : 'rounded-2xl rounded-tr-sm rounded-br-md'}`
+                                                                : `border border-border/50 bg-surface text-foreground ${isConsecutive ? 'rounded-2xl rounded-tl-sm' : 'rounded-2xl rounded-tl-sm rounded-bl-md'}`
+                                                                }`}
+                                                        >
+                                                            <p className="whitespace-pre-wrap leading-relaxed break-words">
+                                                                {msg.body}
+                                                            </p>
+                                                            <div className={`mt-2 flex items-center gap-1.5 text-[10px] ${isAdmin ? 'text-white/80 dark:text-background/80 justify-end' : 'text-muted-foreground/80 justify-end'}`}>
+                                                                <span>{formatDate(msg.sent_at)}</span>
+                                                                {isAdmin && <CheckCircle2 className="h-3 w-3" />}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Reply form */}
                             <AdminReplyForm
-                                conversationId={activeConversation.id}
-                                onSent={() => {
-                                    // optimistic updates rely on websocket event
-                                }}
+                                conversationId={selectedTicket.id}
+                                onSent={(message) =>
+                                    handleReplySuccess(selectedTicket.id, message)
+                                }
                             />
-                        ) : null}
-                    </CardContent>
-                </Card>
+                        </>
+                    ) : (
+                        /* Empty state */
+                        <div className="flex flex-1 flex-col items-center justify-center gap-3 text-muted-foreground">
+                            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-brand/10">
+                                <MessageCircle className="h-8 w-8 text-brand/50" />
+                            </div>
+                            <p className="font-medium">Выберите тикет</p>
+                            <p className="max-w-xs text-center text-sm">
+                                Выберите беседу слева, чтобы посмотреть сообщения и ответить пользователю.
+                            </p>
+                        </div>
+                    )}
+                </div>
             </div>
         </AdminLayout>
     );

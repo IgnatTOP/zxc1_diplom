@@ -3,6 +3,7 @@ import forms from '@tailwindcss/forms';
 
 /** @type {import('tailwindcss').Config} */
 export default {
+    darkMode: 'class',
     content: [
         './vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php',
         './storage/framework/views/*.php',
@@ -13,15 +14,16 @@ export default {
     theme: {
         extend: {
             colors: {
-                background: '#fcfafb',
-                foreground: '#2f2f35',
-                card: '#ffffff',
-                'card-foreground': '#2f2f35',
-                surface: '#edf3f7',
-                border: '#d6e1ea',
-                'muted-foreground': '#5f6a73',
-                brand: '#7db8d5',
-                'brand-dark': '#5a9dbf',
+                background: 'rgb(var(--background) / <alpha-value>)',
+                foreground: 'rgb(var(--foreground) / <alpha-value>)',
+                card: 'rgb(var(--card) / <alpha-value>)',
+                'card-foreground': 'rgb(var(--card-foreground) / <alpha-value>)',
+                surface: 'rgb(var(--surface) / <alpha-value>)',
+                muted: 'rgb(var(--muted) / <alpha-value>)',
+                border: 'rgb(var(--border) / <alpha-value>)',
+                'muted-foreground': 'rgb(var(--muted-foreground) / <alpha-value>)',
+                brand: 'rgb(var(--brand) / <alpha-value>)',
+                'brand-dark': 'rgb(var(--brand-dark) / <alpha-value>)',
             },
             fontFamily: {
                 sans: ['Manrope', ...defaultTheme.fontFamily.sans],

@@ -24,6 +24,7 @@ class SitePageController extends Controller
             'schedulePreview' => GroupScheduleItem::query()->where('is_active', true)->orderBy('sort_order')->limit(8)->get(),
             'team' => TeamMember::query()->where('is_active', true)->orderBy('sort_order')->limit(3)->get(),
             'collage' => Collage::query()->latest('id')->first(),
+            'enrollableGroups' => $this->getEnrollableGroups(),
             'meta' => [
                 'title' => 'DanceWave — Танцевальная студия',
                 'description' => 'Современная танцевальная студия для детей и взрослых.',
@@ -53,13 +54,14 @@ class SitePageController extends Controller
                 ->with([
                     'groups' => fn ($query) => $query
                         ->where('is_active', true)
-                        ->select(['id', 'section_id', 'level']),
+                        ->select(['id', 'section_id', 'name', 'level']),
                 ])
                 ->withCount([
                     'groups as active_groups_count' => fn ($query) => $query->where('is_active', true),
                 ])
                 ->orderBy('sort_order')
                 ->get(),
+            'enrollableGroups' => $this->getEnrollableGroups(),
             'meta' => [
                 'title' => 'Направления — DanceWave',
                 'description' => 'Hip-Hop, Contemporary, Latin, Kids и другие направления.',
@@ -70,12 +72,35 @@ class SitePageController extends Controller
 
     public function schedule(): Response
     {
+        $slots = GroupScheduleItem::query()
+            ->with(['group:id,name,section_id', 'group.section:id,name,slug'])
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get()
+            ->map(static function (GroupScheduleItem $item): array {
+                return [
+                    'id' => $item->id,
+                    'day_of_week' => $item->day_of_week,
+                    'start_time' => $item->start_time,
+                    'end_time' => $item->end_time,
+                    'instructor' => $item->instructor,
+                    'group' => $item->group ? [
+                        'id' => $item->group->id,
+                        'name' => $item->group->name,
+                    ] : null,
+                    'section' => $item->group?->section ? [
+                        'name' => $item->group->section->name,
+                        'slug' => $item->group->section->slug,
+                    ] : null,
+                ];
+            })
+            ->values();
+
         return Inertia::render('Site/Schedule', [
-            'items' => GroupScheduleItem::query()
-                ->with(['group:id,name,section_id', 'group.section:id,name,slug'])
-                ->where('is_active', true)
-                ->orderBy('sort_order')
-                ->get(),
+            'slots' => $slots,
+            // Keep backward compatibility with older frontend contracts.
+            'items' => $slots,
             'meta' => [
                 'title' => 'Расписание — DanceWave',
                 'description' => 'Актуальное расписание групп и секций.',
@@ -141,10 +166,11 @@ class SitePageController extends Controller
     {
         return Inertia::render('Site/Prices', [
             'tariffs' => [
-                ['title' => 'Разовое', 'amount' => 900, 'period' => '1 занятие'],
-                ['title' => 'Абонемент 8', 'amount' => 5200, 'period' => '30 дней'],
-                ['title' => 'Безлимит', 'amount' => 6900, 'period' => '30 дней'],
+                ['id' => 1, 'title' => 'Разовое', 'amount' => 900, 'period' => '1 занятие'],
+                ['id' => 2, 'title' => 'Абонемент 8', 'amount' => 5200, 'period' => '30 дней'],
+                ['id' => 3, 'title' => 'Безлимит', 'amount' => 6900, 'period' => '30 дней'],
             ],
+            'enrollableGroups' => $this->getEnrollableGroups(),
             'meta' => [
                 'title' => 'Цены — DanceWave',
                 'description' => 'Тарифы и стоимость занятий в DanceWave.',
@@ -163,5 +189,19 @@ class SitePageController extends Controller
             ->get(['key_name', 'value'])
             ->pluck('value', 'key_name')
             ->toArray();
+    }
+
+    /**
+     * Groups available for enrollment (active, with capacity).
+     */
+    private function getEnrollableGroups(): \Illuminate\Support\Collection
+    {
+        return Group::query()
+            ->where('is_active', true)
+            ->whereColumn('current_students', '<', 'max_students')
+            ->with('section:id,name')
+            ->orderBy('section_id')
+            ->orderBy('name')
+            ->get(['id', 'section_id', 'name', 'level', 'style', 'billing_amount_cents', 'currency']);
     }
 }

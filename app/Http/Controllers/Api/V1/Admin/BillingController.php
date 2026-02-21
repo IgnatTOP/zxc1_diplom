@@ -19,9 +19,10 @@ class BillingController extends Controller
             'billingAmountCents' => ['nullable', 'integer', 'min:0'],
             'billingPeriodDays' => ['nullable', 'integer', 'min:1', 'max:365'],
             'currency' => ['nullable', 'string', 'size:3'],
+            'groupId' => ['nullable', 'integer', 'exists:groups,id'],
         ]);
 
-        $enrollment->update([
+        $updateData = [
             'status' => array_key_exists('status', $payload) ? $payload['status'] : $enrollment->status,
             'started_at' => array_key_exists('startedAt', $payload) ? $payload['startedAt'] : $enrollment->started_at,
             'ended_at' => array_key_exists('endedAt', $payload) ? $payload['endedAt'] : $enrollment->ended_at,
@@ -29,11 +30,26 @@ class BillingController extends Controller
             'billing_amount_cents' => array_key_exists('billingAmountCents', $payload) ? $payload['billingAmountCents'] : $enrollment->billing_amount_cents,
             'billing_period_days' => array_key_exists('billingPeriodDays', $payload) ? $payload['billingPeriodDays'] : $enrollment->billing_period_days,
             'currency' => array_key_exists('currency', $payload) ? strtoupper((string) $payload['currency']) : $enrollment->currency,
-        ]);
+        ];
+
+        if (array_key_exists('groupId', $payload) && $payload['groupId']) {
+            $group = \App\Models\Group::find($payload['groupId']);
+            if ($group) {
+                $updateData['group_id'] = $group->id;
+                $updateData['section_id'] = $group->section_id;
+            }
+        }
+
+        $enrollment->update($updateData);
 
         return response()->json([
             'ok' => true,
-            'item' => $enrollment->fresh()->load(['user:id,name,email', 'group:id,name', 'section:id,name']),
+            'item' => $enrollment->fresh()->load([
+                'user:id,name,email',
+                'group:id,name',
+                'group.scheduleItems' => fn ($q) => $q->where('is_active', true)->orderBy('sort_order'),
+                'section:id,name'
+            ]),
         ]);
     }
 

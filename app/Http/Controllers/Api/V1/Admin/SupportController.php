@@ -47,13 +47,24 @@ class SupportController extends Controller
         event(new SupportMessageCreated($conversation->fresh(), $message->fresh()));
 
         if ($conversation->guest_token !== null || $conversation->user_id !== null) {
-            $this->telegramBotService->notifyAdminsAboutSupportMessage(
-                $conversation->fresh(),
-                $message->fresh(),
-                excludeTelegramUserIds: [$admin->adminTelegramLink?->telegram_user_id],
-            );
+            try {
+                $this->telegramBotService->notifyAdminsAboutSupportMessage(
+                    $conversation->fresh(),
+                    $message->fresh(),
+                    excludeTelegramUserIds: [$admin->adminTelegramLink?->telegram_user_id],
+                );
+            } catch (\Throwable $exception) {
+                report($exception);
+            }
         }
 
-        return response()->json(['ok' => true]);
+        return response()->json([
+            'ok' => true,
+            'message' => $message->fresh(),
+            'conversation' => $conversation->fresh()->load([
+                'user:id,name,email',
+                'assignedAdmin:id,name,email',
+            ]),
+        ]);
     }
 }

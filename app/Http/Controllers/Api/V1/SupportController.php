@@ -81,10 +81,14 @@ class SupportController extends Controller
 
         event(new SupportMessageCreated($conversation->fresh(), $message->fresh()));
 
-        $this->telegramBotService->notifyAdminsAboutSupportMessage(
-            $conversation->fresh(),
-            $message->fresh(),
-        );
+        try {
+            $this->telegramBotService->notifyAdminsAboutSupportMessage(
+                $conversation->fresh(),
+                $message->fresh(),
+            );
+        } catch (\Throwable $exception) {
+            report($exception);
+        }
 
         $response = response()->json([
             'ok' => true,

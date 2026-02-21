@@ -7,6 +7,14 @@ import { Reveal, Stagger } from '@/shared/ui/motion';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs';
 import { SiteLayout } from '@/widgets/site/SiteLayout';
 import { router } from '@inertiajs/react';
+import {
+    CalendarDays,
+    Clock,
+    CreditCard,
+    Layers,
+    Newspaper,
+    Sparkles,
+} from 'lucide-react';
 import { useMemo } from 'react';
 
 type Enrollment = {
@@ -63,81 +71,108 @@ export default function Portal({
 }: Props) {
     const paymentEnrollments = useMemo<EnrollmentDto[]>(
         () =>
-            enrollments.map((item) => ({
-                id: item.id,
-                groupId: item.group_id,
-                groupName: item.group?.name || `Группа #${item.group_id}`,
-                sectionId: item.section_id,
-                sectionName: item.section?.name || `Секция #${item.section_id}`,
-                nextPaymentDueAt: item.next_payment_due_at,
-                billingAmount: item.billing_amount_cents,
-                currency: item.currency,
-                status: item.status,
-            })),
+            enrollments
+                .filter((item) => item.status === 'active')
+                .map((item) => ({
+                    id: item.id,
+                    groupId: item.group_id,
+                    groupName: item.group?.name || `Группа #${item.group_id}`,
+                    sectionId: item.section_id,
+                    sectionName: item.section?.name || `Секция #${item.section_id}`,
+                    nextPaymentDueAt: item.next_payment_due_at,
+                    billingAmount: item.billing_amount_cents,
+                    currency: item.currency,
+                    status: item.status,
+                })),
         [enrollments],
     );
+
+    const activeCount = enrollments.filter(
+        (item) => item.status === 'active',
+    ).length;
 
     return (
         <SiteLayout meta={meta}>
             <div className="space-y-6">
+                {/* ─── Hero ─── */}
                 <Reveal>
-                    <section className="grid gap-4 lg:grid-cols-3">
-                        <Card>
-                            <CardContent className="p-5">
+                    <div className="rounded-2xl bg-gradient-to-br from-brand/10 via-brand/5 to-transparent p-6 lg:p-8">
+                        <div className="flex items-center gap-3">
+                            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand/15">
+                                <Sparkles className="h-5 w-5 text-brand-dark" />
+                            </div>
+                            <div>
+                                <h1 className="font-title text-xl font-bold tracking-tight lg:text-2xl">
+                                    Личный кабинет
+                                </h1>
                                 <p className="text-sm text-muted-foreground">
-                                    Активные группы
+                                    Управляйте занятиями, оплатой и расписанием
                                 </p>
-                                <p className="mt-2 text-3xl font-bold">
-                                    {
-                                        enrollments.filter(
-                                            (item) => item.status === 'active',
-                                        ).length
-                                    }
-                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </Reveal>
+
+                {/* ─── Stats ─── */}
+                <Reveal delayMs={50}>
+                    <section className="grid gap-3 sm:grid-cols-3">
+                        <Card className="transition-shadow hover:shadow-md">
+                            <CardContent className="flex items-center gap-3 p-5">
+                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-950/40">
+                                    <Layers className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                                </div>
+                                <div>
+                                    <p className="font-title text-2xl font-bold">
+                                        {activeCount}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                        Активные группы
+                                    </p>
+                                </div>
                             </CardContent>
                         </Card>
-                        <Card>
-                            <CardContent className="p-5">
-                                <p className="text-sm text-muted-foreground">
-                                    Ближайшие платежи
-                                </p>
-                                <p className="mt-2 text-3xl font-bold">
-                                    {upcomingPayments.length}
-                                </p>
+                        <Card className="transition-shadow hover:shadow-md">
+                            <CardContent className="flex items-center gap-3 p-5">
+                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-950/40">
+                                    <CreditCard className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                                </div>
+                                <div>
+                                    <p className="font-title text-2xl font-bold">
+                                        {upcomingPayments.length}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                        Ближайшие платежи
+                                    </p>
+                                </div>
                             </CardContent>
                         </Card>
-                        <Card>
-                            <CardContent className="p-5">
-                                <p className="text-sm text-muted-foreground">
-                                    Новостей по вашим секциям
-                                </p>
-                                <p className="mt-2 text-3xl font-bold">
-                                    {sectionNews.length}
-                                </p>
+                        <Card className="transition-shadow hover:shadow-md">
+                            <CardContent className="flex items-center gap-3 p-5">
+                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-100 dark:bg-blue-950/40">
+                                    <Newspaper className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                                </div>
+                                <div>
+                                    <p className="font-title text-2xl font-bold">
+                                        {sectionNews.length}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                        Новости секций
+                                    </p>
+                                </div>
                             </CardContent>
                         </Card>
                     </section>
                 </Reveal>
 
-                <Reveal delayMs={70}>
-                    <Card className="border-brand/20 bg-brand/5">
-                        <CardContent className="p-4 text-sm text-muted-foreground">
-                            В кабинете вы можете вести несколько групп сразу,
-                            быстро оплачивать занятия, отслеживать историю
-                            платежей и общаться с поддержкой в правом нижнем
-                            углу сайта.
-                        </CardContent>
-                    </Card>
-                </Reveal>
-
+                {/* ─── Tabs ─── */}
                 <Tabs defaultValue="groups">
                     <TabsList>
                         <TabsTrigger value="groups">Мои группы</TabsTrigger>
                         <TabsTrigger value="schedule">
-                            Мое расписание
+                            Моё расписание
                         </TabsTrigger>
                         <TabsTrigger value="payments">Платежи</TabsTrigger>
-                        <TabsTrigger value="news">Новости секций</TabsTrigger>
+                        <TabsTrigger value="news">Новости</TabsTrigger>
                     </TabsList>
 
                     <TabsContent value="groups">
@@ -151,36 +186,62 @@ export default function Portal({
                                         {enrollments.map((item) => (
                                             <div
                                                 key={item.id}
-                                                className="rounded-xl border border-border p-3"
+                                                className="rounded-xl border border-border/80 p-3 transition-shadow hover:shadow-sm"
                                             >
                                                 <div className="flex flex-wrap items-center justify-between gap-2">
                                                     <div>
-                                                        <p className="font-medium">
+                                                        <p className="text-sm font-semibold">
                                                             {item.group?.name}
                                                         </p>
-                                                        <p className="text-sm text-muted-foreground">
+                                                        <p className="text-xs text-muted-foreground">
                                                             {item.section?.name}
                                                         </p>
                                                     </div>
                                                     <Badge
                                                         variant={
-                                                            item.status ===
-                                                            'active'
+                                                            item.status === 'active'
                                                                 ? 'success'
-                                                                : 'warning'
+                                                                : item.status === 'pending'
+                                                                    ? 'warning'
+                                                                    : 'muted'
                                                         }
                                                     >
-                                                        {item.status}
+                                                        {item.status === 'active' && '✅ Активно'}
+                                                        {item.status === 'pending' && (
+                                                            <><Clock className="mr-1 h-3 w-3" /> Ожидает подтверждения</>
+                                                        )}
+                                                        {item.status === 'cancelled' && 'Отменено'}
+                                                        {!['active', 'pending', 'cancelled'].includes(item.status) && item.status}
                                                     </Badge>
                                                 </div>
-                                                <p className="mt-2 text-sm text-muted-foreground">
-                                                    Следующий платеж:{' '}
-                                                    {formatDate(
-                                                        item.next_payment_due_at,
-                                                    )}
-                                                </p>
+                                                {item.status === 'pending' && (
+                                                    <p className="mt-1.5 text-xs text-amber-600 dark:text-amber-400">
+                                                        Администратор подтвердит вашу запись в ближайшее время
+                                                    </p>
+                                                )}
+                                                {item.status === 'active' && item.next_payment_due_at && (
+                                                    <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
+                                                        <CalendarDays className="h-3 w-3" />
+                                                        Следующий платеж:{' '}
+                                                        {formatDate(
+                                                            item.next_payment_due_at,
+                                                        )}
+                                                    </div>
+                                                )}
                                             </div>
                                         ))}
+                                        {enrollments.length === 0 && (
+                                            <div className="space-y-2 py-6 text-center">
+                                                <p className="text-sm text-muted-foreground">
+                                                    Вы пока не записаны ни в одну группу.
+                                                </p>
+                                                <p className="text-xs text-muted-foreground/80">
+                                                    Перейдите на страницу{' '}
+                                                    <a href="/directions" className="font-medium text-brand-dark underline underline-offset-2">Направления</a>{' '}
+                                                    и нажмите «Записаться»
+                                                </p>
+                                            </div>
+                                        )}
                                     </Stagger>
                                 </CardContent>
                             </Card>
@@ -206,49 +267,57 @@ export default function Portal({
                                 <CardTitle>Персональное расписание</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <div className="overflow-x-auto rounded-xl border border-border">
-                                    <table className="min-w-full text-left text-sm">
-                                        <thead className="bg-surface/70 text-xs uppercase text-muted-foreground">
-                                            <tr>
-                                                <th className="px-4 py-3">
-                                                    День
-                                                </th>
-                                                <th className="px-4 py-3">
-                                                    Время
-                                                </th>
-                                                <th className="px-4 py-3">
-                                                    Группа
-                                                </th>
-                                                <th className="px-4 py-3">
-                                                    Тренер
-                                                </th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {schedule.map((item) => (
-                                                <tr
-                                                    key={item.id}
-                                                    className="border-t border-border"
-                                                >
-                                                    <td className="px-4 py-3">
-                                                        {item.day_of_week}
-                                                    </td>
-                                                    <td className="px-4 py-3">
-                                                        {String(
-                                                            item.start_time,
-                                                        ).slice(0, 5)}
-                                                    </td>
-                                                    <td className="px-4 py-3">
-                                                        {item.group?.name}
-                                                    </td>
-                                                    <td className="px-4 py-3">
-                                                        {item.instructor}
-                                                    </td>
+                                {schedule.length > 0 ? (
+                                    <div className="overflow-x-auto rounded-xl border border-border/80">
+                                        <table className="min-w-full text-left text-sm">
+                                            <thead className="bg-surface/70 text-xs uppercase text-muted-foreground">
+                                                <tr>
+                                                    <th className="px-4 py-3">
+                                                        День
+                                                    </th>
+                                                    <th className="px-4 py-3">
+                                                        Время
+                                                    </th>
+                                                    <th className="px-4 py-3">
+                                                        Группа
+                                                    </th>
+                                                    <th className="px-4 py-3">
+                                                        Тренер
+                                                    </th>
                                                 </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
+                                            </thead>
+                                            <tbody>
+                                                {schedule.map((item) => (
+                                                    <tr
+                                                        key={item.id}
+                                                        className="border-t border-border/60 transition-colors hover:bg-brand/5"
+                                                    >
+                                                        <td className="px-4 py-3 font-medium">
+                                                            {item.day_of_week}
+                                                        </td>
+                                                        <td className="px-4 py-3">
+                                                            <Badge variant="muted">
+                                                                {String(
+                                                                    item.start_time,
+                                                                ).slice(0, 5)}
+                                                            </Badge>
+                                                        </td>
+                                                        <td className="px-4 py-3">
+                                                            {item.group?.name}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-muted-foreground">
+                                                            {item.instructor}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                ) : (
+                                    <p className="py-6 text-center text-sm text-muted-foreground">
+                                        Расписание пока пустое.
+                                    </p>
+                                )}
                             </CardContent>
                         </Card>
                     </TabsContent>
@@ -264,24 +333,31 @@ export default function Portal({
                                         {upcomingPayments.map((item) => (
                                             <div
                                                 key={item.id}
-                                                className="rounded-lg border border-border p-3"
+                                                className="flex items-center justify-between rounded-xl border border-border/80 p-3"
                                             >
-                                                <p className="font-medium">
-                                                    {item.group?.name}
-                                                </p>
-                                                <p className="text-sm text-muted-foreground">
-                                                    {formatDate(
-                                                        item.next_payment_due_at,
-                                                    )}
-                                                </p>
-                                                <p className="text-sm">
+                                                <div>
+                                                    <p className="text-sm font-semibold">
+                                                        {item.group?.name}
+                                                    </p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {formatDate(
+                                                            item.next_payment_due_at,
+                                                        )}
+                                                    </p>
+                                                </div>
+                                                <span className="font-title text-sm font-bold">
                                                     {formatMoney(
                                                         item.billing_amount_cents,
                                                         item.currency,
                                                     )}
-                                                </p>
+                                                </span>
                                             </div>
                                         ))}
+                                        {upcomingPayments.length === 0 && (
+                                            <p className="py-6 text-center text-sm text-muted-foreground">
+                                                Нет предстоящих платежей.
+                                            </p>
+                                        )}
                                     </Stagger>
                                 </CardContent>
                             </Card>
@@ -295,10 +371,10 @@ export default function Portal({
                                         {payments.map((item) => (
                                             <div
                                                 key={item.id}
-                                                className="rounded-lg border border-border p-3"
+                                                className="rounded-xl border border-border/80 p-3"
                                             >
                                                 <div className="flex items-center justify-between">
-                                                    <p className="font-medium">
+                                                    <p className="text-sm font-semibold">
                                                         {formatMoney(
                                                             item.amount_cents,
                                                             item.currency,
@@ -308,7 +384,7 @@ export default function Portal({
                                                         Успешно
                                                     </Badge>
                                                 </div>
-                                                <p className="text-sm text-muted-foreground">
+                                                <p className="mt-1 text-xs text-muted-foreground">
                                                     {formatDate(item.paid_at)}
                                                 </p>
                                                 <p className="text-xs text-muted-foreground">
@@ -320,6 +396,11 @@ export default function Portal({
                                                 </p>
                                             </div>
                                         ))}
+                                        {payments.length === 0 && (
+                                            <p className="py-6 text-center text-sm text-muted-foreground">
+                                                История оплат пуста.
+                                            </p>
+                                        )}
                                     </Stagger>
                                 </CardContent>
                             </Card>
@@ -336,25 +417,30 @@ export default function Portal({
                                     {sectionNews.map((item) => (
                                         <article
                                             key={item.id}
-                                            className="rounded-xl border border-border p-3"
+                                            className="rounded-xl border border-border/80 p-3 transition-shadow hover:shadow-sm"
                                         >
                                             <div className="flex items-center justify-between gap-2">
-                                                <h3 className="font-medium">
+                                                <h3 className="text-sm font-semibold">
                                                     {item.title}
                                                 </h3>
                                                 <Badge variant="muted">
                                                     {item.section?.name}
                                                 </Badge>
                                             </div>
-                                            <p className="mt-2 text-sm text-muted-foreground">
+                                            <p className="mt-1.5 text-sm text-muted-foreground">
                                                 {item.summary ||
                                                     'Подробнее в секции новостей.'}
                                             </p>
-                                            <p className="mt-2 text-xs text-muted-foreground">
+                                            <p className="mt-1 text-xs text-muted-foreground">
                                                 {formatDate(item.published_at)}
                                             </p>
                                         </article>
                                     ))}
+                                    {sectionNews.length === 0 && (
+                                        <p className="py-6 text-center text-sm text-muted-foreground">
+                                            Новостей пока нет.
+                                        </p>
+                                    )}
                                 </Stagger>
                             </CardContent>
                         </Card>

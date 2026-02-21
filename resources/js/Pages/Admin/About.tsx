@@ -5,6 +5,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
 import { Input } from '@/shared/ui/input';
 import { Textarea } from '@/shared/ui/textarea';
 import { AdminLayout } from '@/widgets/admin/AdminLayout';
+import {
+    AlertCircle,
+    CheckCircle2,
+    FileText,
+    Plus,
+    Trash2,
+    Users,
+} from 'lucide-react';
 import { FormEvent, useMemo, useState } from 'react';
 
 type TeamMember = {
@@ -36,7 +44,7 @@ function getErrorMessage(error: unknown): string {
         : 'Не удалось выполнить запрос.';
 }
 
-export default function About({ team, content }: Props) {
+export default function About({ team = [], content = [] }: Props) {
     const [teamList, setTeamList] = useState<TeamMember[]>(team);
     const [contentList, setContentList] = useState<ContentItem[]>(content);
     const [savingTeamId, setSavingTeamId] = useState<number | null>(null);
@@ -218,86 +226,127 @@ export default function About({ team, content }: Props) {
 
     return (
         <AdminLayout title="О нас">
+            {notice ? (
+                <div
+                    className={`flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium ${notice.tone === 'success'
+                        ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400'
+                        : 'bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400'
+                        }`}
+                >
+                    {notice.tone === 'success' ? (
+                        <CheckCircle2 className="h-4 w-4 shrink-0" />
+                    ) : (
+                        <AlertCircle className="h-4 w-4 shrink-0" />
+                    )}
+                    {notice.text}
+                </div>
+            ) : null}
+
             <Card>
-                <CardContent className="flex flex-wrap items-center gap-4 pt-6 text-sm text-muted-foreground">
-                    <span>Участников команды: {teamList.length}</span>
-                    <span>Активных: {activeTeamCount}</span>
-                    <span>Контент-блоков: {contentList.length}</span>
+                <CardContent className="flex flex-wrap items-center gap-6 pt-6">
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand/10">
+                            <Users className="h-5 w-5 text-brand" />
+                        </div>
+                        <div>
+                            <p className="text-sm font-medium">Команда</p>
+                            <p className="text-xs text-muted-foreground">
+                                Всего: {teamList.length} · Активных: {activeTeamCount}
+                            </p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-950/30">
+                            <FileText className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                        </div>
+                        <div>
+                            <p className="text-sm font-medium">Контент-блоки</p>
+                            <p className="text-xs text-muted-foreground">
+                                Всего: {contentList.length}
+                            </p>
+                        </div>
+                    </div>
                 </CardContent>
             </Card>
-
-            {notice ? (
-                <p
-                    className={`rounded-lg px-3 py-2 text-sm ${
-                        notice.tone === 'success'
-                            ? 'bg-emerald-100 text-emerald-700'
-                            : 'bg-red-100 text-red-700'
-                    }`}
-                >
-                    {notice.text}
-                </p>
-            ) : null}
 
             <div className="grid gap-4 lg:grid-cols-2">
                 <Card>
                     <CardHeader>
-                        <CardTitle>Команда</CardTitle>
+                        <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand/10">
+                                <Users className="h-5 w-5 text-brand" />
+                            </div>
+                            <CardTitle>Команда</CardTitle>
+                        </div>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <form
-                            className="grid gap-3"
+                            className="grid gap-4"
                             onSubmit={createTeamMember}
                         >
-                            <Input
-                                placeholder="Имя"
-                                value={teamForm.name}
-                                onChange={(event) =>
-                                    setTeamForm((prev) => ({
-                                        ...prev,
-                                        name: event.target.value,
-                                    }))
-                                }
-                                required
-                            />
-                            <Textarea
-                                rows={3}
-                                placeholder="Опыт и описание"
-                                value={teamForm.experience}
-                                onChange={(event) =>
-                                    setTeamForm((prev) => ({
-                                        ...prev,
-                                        experience: event.target.value,
-                                    }))
-                                }
-                                required
-                            />
-                            <Input
-                                placeholder="Фото (путь/URL)"
-                                value={teamForm.photo}
-                                onChange={(event) =>
-                                    setTeamForm((prev) => ({
-                                        ...prev,
-                                        photo: event.target.value,
-                                    }))
-                                }
-                            />
-                            <div className="grid gap-3 sm:grid-cols-2">
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-medium text-muted-foreground">Имя *</label>
                                 <Input
-                                    type="number"
-                                    placeholder="Порядок сортировки"
-                                    value={teamForm.sortOrder}
+                                    placeholder="Имя"
+                                    value={teamForm.name}
                                     onChange={(event) =>
                                         setTeamForm((prev) => ({
                                             ...prev,
-                                            sortOrder: Number(
-                                                event.target.value,
-                                            ),
+                                            name: event.target.value,
+                                        }))
+                                    }
+                                    required
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-medium text-muted-foreground">Опыт и описание *</label>
+                                <Textarea
+                                    rows={3}
+                                    placeholder="Опыт и описание"
+                                    value={teamForm.experience}
+                                    onChange={(event) =>
+                                        setTeamForm((prev) => ({
+                                            ...prev,
+                                            experience: event.target.value,
+                                        }))
+                                    }
+                                    required
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-medium text-muted-foreground">Фото</label>
+                                <Input
+                                    placeholder="Фото (путь/URL)"
+                                    value={teamForm.photo}
+                                    onChange={(event) =>
+                                        setTeamForm((prev) => ({
+                                            ...prev,
+                                            photo: event.target.value,
                                         }))
                                     }
                                 />
-                                <label className="inline-flex h-11 items-center gap-2 rounded-xl border border-border px-3 text-sm">
+                            </div>
+                            <div className="grid gap-3 sm:grid-cols-2">
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-medium text-muted-foreground">Сортировка</label>
+                                    <Input
+                                        type="number"
+                                        placeholder="Порядок сортировки"
+                                        value={teamForm.sortOrder}
+                                        onChange={(event) =>
+                                            setTeamForm((prev) => ({
+                                                ...prev,
+                                                sortOrder: Number(
+                                                    event.target.value,
+                                                ),
+                                            }))
+                                        }
+                                    />
+                                </div>
+                                <label className="inline-flex h-11 items-center gap-2 self-end rounded-xl border border-border px-3 text-sm">
                                     <input
                                         type="checkbox"
+                                        className="accent-brand"
                                         checked={teamForm.isActive}
                                         onChange={(event) =>
                                             setTeamForm((prev) => ({
@@ -309,14 +358,17 @@ export default function About({ team, content }: Props) {
                                     Активен
                                 </label>
                             </div>
-                            <Button type="submit">Добавить участника</Button>
+                            <Button type="submit">
+                                <Plus className="mr-1 h-4 w-4" />
+                                Добавить участника
+                            </Button>
                         </form>
 
                         <div className="space-y-3">
                             {teamList.map((item) => (
                                 <div
                                     key={item.id}
-                                    className="space-y-2 rounded-xl border border-border p-3"
+                                    className="space-y-2 rounded-xl border border-border p-3 transition-shadow hover:shadow-sm"
                                 >
                                     <div className="flex items-center justify-between gap-2">
                                         <p className="text-sm font-semibold">
@@ -334,82 +386,95 @@ export default function About({ team, content }: Props) {
                                                 : 'Активен'}
                                         </Badge>
                                     </div>
-                                    <Input
-                                        value={item.name}
-                                        onChange={(event) =>
-                                            setTeamList((prev) =>
-                                                prev.map((row) =>
-                                                    row.id === item.id
-                                                        ? {
-                                                              ...row,
-                                                              name: event.target
-                                                                  .value,
-                                                          }
-                                                        : row,
-                                                ),
-                                            )
-                                        }
-                                    />
-                                    <Textarea
-                                        rows={3}
-                                        value={item.experience}
-                                        onChange={(event) =>
-                                            setTeamList((prev) =>
-                                                prev.map((row) =>
-                                                    row.id === item.id
-                                                        ? {
-                                                              ...row,
-                                                              experience:
-                                                                  event.target
-                                                                      .value,
-                                                          }
-                                                        : row,
-                                                ),
-                                            )
-                                        }
-                                    />
-                                    <Input
-                                        value={item.photo || ''}
-                                        placeholder="Фото (путь/URL)"
-                                        onChange={(event) =>
-                                            setTeamList((prev) =>
-                                                prev.map((row) =>
-                                                    row.id === item.id
-                                                        ? {
-                                                              ...row,
-                                                              photo: event
-                                                                  .target.value,
-                                                          }
-                                                        : row,
-                                                ),
-                                            )
-                                        }
-                                    />
-                                    <div className="grid gap-3 sm:grid-cols-2">
+                                    <div className="space-y-1">
+                                        <label className="text-xs text-muted-foreground">Имя</label>
                                         <Input
-                                            type="number"
-                                            value={item.sort_order ?? 0}
+                                            value={item.name}
                                             onChange={(event) =>
                                                 setTeamList((prev) =>
                                                     prev.map((row) =>
                                                         row.id === item.id
                                                             ? {
-                                                                  ...row,
-                                                                  sort_order:
-                                                                      Number(
-                                                                          event
-                                                                              .target
-                                                                              .value,
-                                                                      ),
-                                                              }
+                                                                ...row,
+                                                                name: event.target
+                                                                    .value,
+                                                            }
                                                             : row,
                                                     ),
                                                 )
                                             }
                                         />
-                                        <label className="inline-flex h-11 items-center gap-2 rounded-xl border border-border px-3 text-sm">
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-xs text-muted-foreground">Опыт</label>
+                                        <Textarea
+                                            rows={3}
+                                            value={item.experience}
+                                            onChange={(event) =>
+                                                setTeamList((prev) =>
+                                                    prev.map((row) =>
+                                                        row.id === item.id
+                                                            ? {
+                                                                ...row,
+                                                                experience:
+                                                                    event.target
+                                                                        .value,
+                                                            }
+                                                            : row,
+                                                    ),
+                                                )
+                                            }
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-xs text-muted-foreground">Фото</label>
+                                        <Input
+                                            value={item.photo || ''}
+                                            placeholder="Фото (путь/URL)"
+                                            onChange={(event) =>
+                                                setTeamList((prev) =>
+                                                    prev.map((row) =>
+                                                        row.id === item.id
+                                                            ? {
+                                                                ...row,
+                                                                photo: event
+                                                                    .target.value,
+                                                            }
+                                                            : row,
+                                                    ),
+                                                )
+                                            }
+                                        />
+                                    </div>
+                                    <div className="grid gap-3 sm:grid-cols-2">
+                                        <div className="space-y-1">
+                                            <label className="text-xs text-muted-foreground">Сортировка</label>
+                                            <Input
+                                                type="number"
+                                                value={item.sort_order ?? 0}
+                                                onChange={(event) =>
+                                                    setTeamList((prev) =>
+                                                        prev.map((row) =>
+                                                            row.id === item.id
+                                                                ? {
+                                                                    ...row,
+                                                                    sort_order:
+                                                                        Number(
+                                                                            event
+                                                                                .target
+                                                                                .value,
+                                                                        ),
+                                                                }
+                                                                : row,
+                                                        ),
+                                                    )
+                                                }
+                                            />
+                                        </div>
+                                        <label className="inline-flex h-11 items-center gap-2 self-end rounded-xl border border-border px-3 text-sm">
                                             <input
                                                 type="checkbox"
+                                                className="accent-brand"
                                                 checked={
                                                     item.is_active !== false
                                                 }
@@ -418,12 +483,12 @@ export default function About({ team, content }: Props) {
                                                         prev.map((row) =>
                                                             row.id === item.id
                                                                 ? {
-                                                                      ...row,
-                                                                      is_active:
-                                                                          event
-                                                                              .target
-                                                                              .checked,
-                                                                  }
+                                                                    ...row,
+                                                                    is_active:
+                                                                        event
+                                                                            .target
+                                                                            .checked,
+                                                                }
                                                                 : row,
                                                         ),
                                                     )
@@ -432,7 +497,7 @@ export default function About({ team, content }: Props) {
                                             Активен
                                         </label>
                                     </div>
-                                    <div className="flex gap-2">
+                                    <div className="flex gap-2 border-t border-border/50 pt-3">
                                         <Button
                                             type="button"
                                             size="sm"
@@ -450,6 +515,7 @@ export default function About({ team, content }: Props) {
                                                 deleteTeamMember(item.id)
                                             }
                                         >
+                                            <Trash2 className="mr-1 h-3.5 w-3.5" />
                                             Удалить
                                         </Button>
                                     </div>
@@ -461,140 +527,172 @@ export default function About({ team, content }: Props) {
 
                 <Card>
                     <CardHeader>
-                        <CardTitle>Контент страницы «О нас»</CardTitle>
+                        <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-950/30">
+                                <FileText className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                            </div>
+                            <CardTitle>Контент страницы «О нас»</CardTitle>
+                        </div>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <form
-                            className="grid gap-3"
+                            className="grid gap-4"
                             onSubmit={createContentItem}
                         >
-                            <Input
-                                placeholder="Секция (например, main)"
-                                value={contentForm.section}
-                                onChange={(event) =>
-                                    setContentForm((prev) => ({
-                                        ...prev,
-                                        section: event.target.value,
-                                    }))
-                                }
-                                required
-                            />
-                            <Input
-                                placeholder="Ключ (например, main_text)"
-                                value={contentForm.keyName}
-                                onChange={(event) =>
-                                    setContentForm((prev) => ({
-                                        ...prev,
-                                        keyName: event.target.value,
-                                    }))
-                                }
-                                required
-                            />
-                            <Input
-                                placeholder="Тип (text, html...)"
-                                value={contentForm.type}
-                                onChange={(event) =>
-                                    setContentForm((prev) => ({
-                                        ...prev,
-                                        type: event.target.value,
-                                    }))
-                                }
-                            />
-                            <Textarea
-                                rows={5}
-                                placeholder="Значение"
-                                value={contentForm.value}
-                                onChange={(event) =>
-                                    setContentForm((prev) => ({
-                                        ...prev,
-                                        value: event.target.value,
-                                    }))
-                                }
-                            />
-                            <Button type="submit">Добавить контент-блок</Button>
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-medium text-muted-foreground">Секция *</label>
+                                <Input
+                                    placeholder="Секция (например, main)"
+                                    value={contentForm.section}
+                                    onChange={(event) =>
+                                        setContentForm((prev) => ({
+                                            ...prev,
+                                            section: event.target.value,
+                                        }))
+                                    }
+                                    required
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-medium text-muted-foreground">Ключ *</label>
+                                <Input
+                                    placeholder="Ключ (например, main_text)"
+                                    value={contentForm.keyName}
+                                    onChange={(event) =>
+                                        setContentForm((prev) => ({
+                                            ...prev,
+                                            keyName: event.target.value,
+                                        }))
+                                    }
+                                    required
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-medium text-muted-foreground">Тип</label>
+                                <Input
+                                    placeholder="Тип (text, html...)"
+                                    value={contentForm.type}
+                                    onChange={(event) =>
+                                        setContentForm((prev) => ({
+                                            ...prev,
+                                            type: event.target.value,
+                                        }))
+                                    }
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-medium text-muted-foreground">Значение</label>
+                                <Textarea
+                                    rows={5}
+                                    placeholder="Значение"
+                                    value={contentForm.value}
+                                    onChange={(event) =>
+                                        setContentForm((prev) => ({
+                                            ...prev,
+                                            value: event.target.value,
+                                        }))
+                                    }
+                                />
+                            </div>
+                            <Button type="submit">
+                                <Plus className="mr-1 h-4 w-4" />
+                                Добавить контент-блок
+                            </Button>
                         </form>
 
                         <div className="space-y-3">
                             {contentList.map((item) => (
                                 <div
                                     key={item.id}
-                                    className="space-y-2 rounded-xl border border-border p-3"
+                                    className="space-y-2 rounded-xl border border-border p-3 transition-shadow hover:shadow-sm"
                                 >
                                     <p className="text-sm font-semibold">
                                         Блок #{item.id}
                                     </p>
-                                    <Input
-                                        value={item.section || 'main'}
-                                        placeholder="Секция"
-                                        onChange={(event) =>
-                                            setContentList((prev) =>
-                                                prev.map((row) =>
-                                                    row.id === item.id
-                                                        ? {
-                                                              ...row,
-                                                              section:
-                                                                  event.target
-                                                                      .value,
-                                                          }
-                                                        : row,
-                                                ),
-                                            )
-                                        }
-                                    />
-                                    <Input
-                                        value={item.key_name}
-                                        placeholder="Ключ"
-                                        onChange={(event) =>
-                                            setContentList((prev) =>
-                                                prev.map((row) =>
-                                                    row.id === item.id
-                                                        ? {
-                                                              ...row,
-                                                              key_name:
-                                                                  event.target
-                                                                      .value,
-                                                          }
-                                                        : row,
-                                                ),
-                                            )
-                                        }
-                                    />
-                                    <Input
-                                        value={item.type || 'text'}
-                                        placeholder="Тип"
-                                        onChange={(event) =>
-                                            setContentList((prev) =>
-                                                prev.map((row) =>
-                                                    row.id === item.id
-                                                        ? {
-                                                              ...row,
-                                                              type: event.target
-                                                                  .value,
-                                                          }
-                                                        : row,
-                                                ),
-                                            )
-                                        }
-                                    />
-                                    <Textarea
-                                        rows={5}
-                                        value={item.value || ''}
-                                        placeholder="Значение"
-                                        onChange={(event) =>
-                                            setContentList((prev) =>
-                                                prev.map((row) =>
-                                                    row.id === item.id
-                                                        ? {
-                                                              ...row,
-                                                              value: event
-                                                                  .target.value,
-                                                          }
-                                                        : row,
-                                                ),
-                                            )
-                                        }
-                                    />
-                                    <div className="flex gap-2">
+                                    <div className="space-y-1">
+                                        <label className="text-xs text-muted-foreground">Секция</label>
+                                        <Input
+                                            value={item.section || 'main'}
+                                            placeholder="Секция"
+                                            onChange={(event) =>
+                                                setContentList((prev) =>
+                                                    prev.map((row) =>
+                                                        row.id === item.id
+                                                            ? {
+                                                                ...row,
+                                                                section:
+                                                                    event.target
+                                                                        .value,
+                                                            }
+                                                            : row,
+                                                    ),
+                                                )
+                                            }
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-xs text-muted-foreground">Ключ</label>
+                                        <Input
+                                            value={item.key_name}
+                                            placeholder="Ключ"
+                                            onChange={(event) =>
+                                                setContentList((prev) =>
+                                                    prev.map((row) =>
+                                                        row.id === item.id
+                                                            ? {
+                                                                ...row,
+                                                                key_name:
+                                                                    event.target
+                                                                        .value,
+                                                            }
+                                                            : row,
+                                                    ),
+                                                )
+                                            }
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-xs text-muted-foreground">Тип</label>
+                                        <Input
+                                            value={item.type || 'text'}
+                                            placeholder="Тип"
+                                            onChange={(event) =>
+                                                setContentList((prev) =>
+                                                    prev.map((row) =>
+                                                        row.id === item.id
+                                                            ? {
+                                                                ...row,
+                                                                type: event.target
+                                                                    .value,
+                                                            }
+                                                            : row,
+                                                    ),
+                                                )
+                                            }
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-xs text-muted-foreground">Значение</label>
+                                        <Textarea
+                                            rows={5}
+                                            value={item.value || ''}
+                                            placeholder="Значение"
+                                            onChange={(event) =>
+                                                setContentList((prev) =>
+                                                    prev.map((row) =>
+                                                        row.id === item.id
+                                                            ? {
+                                                                ...row,
+                                                                value: event
+                                                                    .target.value,
+                                                            }
+                                                            : row,
+                                                    ),
+                                                )
+                                            }
+                                        />
+                                    </div>
+                                    <div className="flex gap-2 border-t border-border/50 pt-3">
                                         <Button
                                             type="button"
                                             size="sm"
@@ -618,6 +716,7 @@ export default function About({ team, content }: Props) {
                                                 deleteContentItem(item.id)
                                             }
                                         >
+                                            <Trash2 className="mr-1 h-3.5 w-3.5" />
                                             Удалить
                                         </Button>
                                     </div>

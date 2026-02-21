@@ -6,6 +6,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
 import { Input } from '@/shared/ui/input';
 import { Textarea } from '@/shared/ui/textarea';
 import { AdminLayout } from '@/widgets/admin/AdminLayout';
+import {
+    AlertCircle,
+    BookOpen,
+    CheckCircle2,
+    PenLine,
+    Search,
+    Settings,
+    Trash2,
+} from 'lucide-react';
 import { FormEvent, useMemo, useState } from 'react';
 
 type BlogPostItem = {
@@ -74,7 +83,7 @@ function getErrorMessage(error: unknown): string {
         : 'Не удалось выполнить запрос.';
 }
 
-export default function Blog({ posts, pageSettings }: Props) {
+export default function Blog({ posts = [], pageSettings = [] }: Props) {
     const [list, setList] = useState<BlogPostItem[]>(() =>
         posts.map(normalizePost),
     );
@@ -286,264 +295,341 @@ export default function Blog({ posts, pageSettings }: Props) {
 
     return (
         <AdminLayout title="Блог">
+            {notice ? (
+                <div
+                    className={`flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium ${notice.tone === 'success'
+                        ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400'
+                        : 'bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400'
+                        }`}
+                >
+                    {notice.tone === 'success' ? (
+                        <CheckCircle2 className="h-4 w-4 shrink-0" />
+                    ) : (
+                        <AlertCircle className="h-4 w-4 shrink-0" />
+                    )}
+                    {notice.text}
+                </div>
+            ) : null}
+
             <Card>
                 <CardHeader>
-                    <CardTitle>Новый пост</CardTitle>
-                    <p className="text-sm text-muted-foreground">
-                        Постов: {list.length} · Опубликовано:{' '}
-                        {list.filter((post) => post.is_published).length} ·
-                        Настроек страницы: {settingsList.length}
-                    </p>
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand/10">
+                            <PenLine className="h-5 w-5 text-brand" />
+                        </div>
+                        <div>
+                            <CardTitle>Новый пост</CardTitle>
+                            <p className="text-sm text-muted-foreground">
+                                Постов: {list.length} · Опубликовано:{' '}
+                                {list.filter((post) => post.is_published).length} ·
+                                Настроек: {settingsList.length}
+                            </p>
+                        </div>
+                    </div>
                 </CardHeader>
                 <CardContent>
                     <form
-                        className="grid gap-3 md:grid-cols-2"
+                        className="grid gap-4 md:grid-cols-2"
                         onSubmit={createPost}
                     >
-                        <Input
-                            placeholder="Заголовок"
-                            value={form.title}
-                            onChange={(event) =>
-                                setForm((prev) => ({
-                                    ...prev,
-                                    title: event.target.value,
-                                }))
-                            }
-                            required
-                        />
-                        <Input
-                            placeholder="slug (можно оставить пустым)"
-                            value={form.slug}
-                            onChange={(event) =>
-                                setForm((prev) => ({
-                                    ...prev,
-                                    slug: event.target.value,
-                                }))
-                            }
-                        />
-                        <Input
-                            placeholder="Обложка (путь/URL)"
-                            value={form.featuredImage}
-                            onChange={(event) =>
-                                setForm((prev) => ({
-                                    ...prev,
-                                    featuredImage: event.target.value,
-                                }))
-                            }
-                        />
-                        <Input
-                            placeholder="Автор"
-                            value={form.author}
-                            onChange={(event) =>
-                                setForm((prev) => ({
-                                    ...prev,
-                                    author: event.target.value,
-                                }))
-                            }
-                        />
-                        <Textarea
-                            className="md:col-span-2"
-                            rows={4}
-                            placeholder="Краткое описание"
-                            value={form.excerpt}
-                            onChange={(event) =>
-                                setForm((prev) => ({
-                                    ...prev,
-                                    excerpt: event.target.value,
-                                }))
-                            }
-                        />
-                        <Textarea
-                            className="md:col-span-2"
-                            rows={12}
-                            placeholder="Полный текст"
-                            value={form.content}
-                            onChange={(event) =>
-                                setForm((prev) => ({
-                                    ...prev,
-                                    content: event.target.value,
-                                }))
-                            }
-                            required
-                        />
-                        <Input
-                            type="datetime-local"
-                            value={form.publishedDate}
-                            onChange={(event) =>
-                                setForm((prev) => ({
-                                    ...prev,
-                                    publishedDate: event.target.value,
-                                }))
-                            }
-                        />
-                        <Input
-                            type="number"
-                            placeholder="Порядок сортировки"
-                            value={form.sortOrder}
-                            onChange={(event) =>
-                                setForm((prev) => ({
-                                    ...prev,
-                                    sortOrder: Number(event.target.value),
-                                }))
-                            }
-                        />
-                        <label className="inline-flex h-11 items-center gap-2 rounded-xl border border-border px-3 text-sm">
-                            <input
-                                type="checkbox"
-                                checked={form.isPublished}
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-muted-foreground">Заголовок *</label>
+                            <Input
+                                placeholder="Заголовок поста"
+                                value={form.title}
                                 onChange={(event) =>
                                     setForm((prev) => ({
                                         ...prev,
-                                        isPublished: event.target.checked,
+                                        title: event.target.value,
+                                    }))
+                                }
+                                required
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-muted-foreground">Slug</label>
+                            <Input
+                                placeholder="auto-generated-slug"
+                                value={form.slug}
+                                onChange={(event) =>
+                                    setForm((prev) => ({
+                                        ...prev,
+                                        slug: event.target.value,
                                     }))
                                 }
                             />
-                            Опубликовать
-                        </label>
-                        <Button type="submit" disabled={isCreating}>
-                            Добавить пост
-                        </Button>
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-muted-foreground">Обложка</label>
+                            <Input
+                                placeholder="Путь или URL"
+                                value={form.featuredImage}
+                                onChange={(event) =>
+                                    setForm((prev) => ({
+                                        ...prev,
+                                        featuredImage: event.target.value,
+                                    }))
+                                }
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-muted-foreground">Автор</label>
+                            <Input
+                                placeholder="Имя автора"
+                                value={form.author}
+                                onChange={(event) =>
+                                    setForm((prev) => ({
+                                        ...prev,
+                                        author: event.target.value,
+                                    }))
+                                }
+                            />
+                        </div>
+                        <div className="space-y-1.5 md:col-span-2">
+                            <label className="text-xs font-medium text-muted-foreground">Краткое описание</label>
+                            <Textarea
+                                rows={3}
+                                placeholder="Аннотация к посту"
+                                value={form.excerpt}
+                                onChange={(event) =>
+                                    setForm((prev) => ({
+                                        ...prev,
+                                        excerpt: event.target.value,
+                                    }))
+                                }
+                            />
+                        </div>
+                        <div className="space-y-1.5 md:col-span-2">
+                            <label className="text-xs font-medium text-muted-foreground">Полный текст *</label>
+                            <Textarea
+                                rows={10}
+                                placeholder="Содержание поста"
+                                value={form.content}
+                                onChange={(event) =>
+                                    setForm((prev) => ({
+                                        ...prev,
+                                        content: event.target.value,
+                                    }))
+                                }
+                                required
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-muted-foreground">Дата публикации</label>
+                            <Input
+                                type="datetime-local"
+                                value={form.publishedDate}
+                                onChange={(event) =>
+                                    setForm((prev) => ({
+                                        ...prev,
+                                        publishedDate: event.target.value,
+                                    }))
+                                }
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-muted-foreground">Сортировка</label>
+                            <Input
+                                type="number"
+                                placeholder="Порядок"
+                                value={form.sortOrder}
+                                onChange={(event) =>
+                                    setForm((prev) => ({
+                                        ...prev,
+                                        sortOrder: Number(event.target.value),
+                                    }))
+                                }
+                            />
+                        </div>
+                        <div className="flex items-end gap-3 md:col-span-2">
+                            <label className="inline-flex h-11 items-center gap-2 rounded-xl border border-border px-3 text-sm">
+                                <input
+                                    type="checkbox"
+                                    className="accent-brand"
+                                    checked={form.isPublished}
+                                    onChange={(event) =>
+                                        setForm((prev) => ({
+                                            ...prev,
+                                            isPublished: event.target.checked,
+                                        }))
+                                    }
+                                />
+                                Опубликовать
+                            </label>
+                            <Button type="submit" disabled={isCreating}>
+                                Добавить пост
+                            </Button>
+                        </div>
                     </form>
                 </CardContent>
             </Card>
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Настройки страницы блога</CardTitle>
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand/10">
+                            <Settings className="h-5 w-5 text-brand" />
+                        </div>
+                        <CardTitle>Настройки страницы блога</CardTitle>
+                    </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <form
-                        className="grid gap-3 md:grid-cols-2"
+                        className="grid gap-4 md:grid-cols-2"
                         onSubmit={createSetting}
                     >
-                        <Input
-                            placeholder="Секция (например, main)"
-                            value={settingForm.section}
-                            onChange={(event) =>
-                                setSettingForm((prev) => ({
-                                    ...prev,
-                                    section: event.target.value,
-                                }))
-                            }
-                            required
-                        />
-                        <Input
-                            placeholder="Ключ (например, hero_text)"
-                            value={settingForm.keyName}
-                            onChange={(event) =>
-                                setSettingForm((prev) => ({
-                                    ...prev,
-                                    keyName: event.target.value,
-                                }))
-                            }
-                            required
-                        />
-                        <Input
-                            placeholder="Тип (text, html...)"
-                            value={settingForm.type}
-                            onChange={(event) =>
-                                setSettingForm((prev) => ({
-                                    ...prev,
-                                    type: event.target.value,
-                                }))
-                            }
-                        />
-                        <Button type="submit" disabled={savingId === -1}>
-                            Добавить настройку
-                        </Button>
-                        <Textarea
-                            className="md:col-span-2"
-                            rows={4}
-                            placeholder="Значение"
-                            value={settingForm.value}
-                            onChange={(event) =>
-                                setSettingForm((prev) => ({
-                                    ...prev,
-                                    value: event.target.value,
-                                }))
-                            }
-                        />
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-muted-foreground">Секция *</label>
+                            <Input
+                                placeholder="main"
+                                value={settingForm.section}
+                                onChange={(event) =>
+                                    setSettingForm((prev) => ({
+                                        ...prev,
+                                        section: event.target.value,
+                                    }))
+                                }
+                                required
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-muted-foreground">Ключ *</label>
+                            <Input
+                                placeholder="hero_text"
+                                value={settingForm.keyName}
+                                onChange={(event) =>
+                                    setSettingForm((prev) => ({
+                                        ...prev,
+                                        keyName: event.target.value,
+                                    }))
+                                }
+                                required
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-muted-foreground">Тип</label>
+                            <Input
+                                placeholder="text, html..."
+                                value={settingForm.type}
+                                onChange={(event) =>
+                                    setSettingForm((prev) => ({
+                                        ...prev,
+                                        type: event.target.value,
+                                    }))
+                                }
+                            />
+                        </div>
+                        <div className="flex items-end">
+                            <Button type="submit" disabled={savingId === -1}>
+                                Добавить настройку
+                            </Button>
+                        </div>
+                        <div className="space-y-1.5 md:col-span-2">
+                            <label className="text-xs font-medium text-muted-foreground">Значение</label>
+                            <Textarea
+                                rows={3}
+                                placeholder="Значение настройки"
+                                value={settingForm.value}
+                                onChange={(event) =>
+                                    setSettingForm((prev) => ({
+                                        ...prev,
+                                        value: event.target.value,
+                                    }))
+                                }
+                            />
+                        </div>
                     </form>
 
                     <div className="space-y-3">
                         {settingsList.map((setting) => (
                             <div
                                 key={setting.id}
-                                className="space-y-2 rounded-xl border border-border p-3"
+                                className="space-y-3 rounded-xl border border-border bg-surface/40 p-4"
                             >
                                 <p className="text-sm font-semibold">
                                     Настройка #{setting.id}
                                 </p>
-                                <div className="grid gap-2 md:grid-cols-2">
-                                    <Input
-                                        value={setting.section || 'main'}
+                                <div className="grid gap-3 md:grid-cols-3">
+                                    <div className="space-y-1">
+                                        <label className="text-xs text-muted-foreground">Секция</label>
+                                        <Input
+                                            value={setting.section || 'main'}
+                                            onChange={(event) =>
+                                                setSettingsList((prev) =>
+                                                    prev.map((row) =>
+                                                        row.id === setting.id
+                                                            ? {
+                                                                ...row,
+                                                                section:
+                                                                    event.target
+                                                                        .value,
+                                                            }
+                                                            : row,
+                                                    ),
+                                                )
+                                            }
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-xs text-muted-foreground">Ключ</label>
+                                        <Input
+                                            value={setting.key_name}
+                                            onChange={(event) =>
+                                                setSettingsList((prev) =>
+                                                    prev.map((row) =>
+                                                        row.id === setting.id
+                                                            ? {
+                                                                ...row,
+                                                                key_name:
+                                                                    event.target
+                                                                        .value,
+                                                            }
+                                                            : row,
+                                                    ),
+                                                )
+                                            }
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-xs text-muted-foreground">Тип</label>
+                                        <Input
+                                            value={setting.type || 'text'}
+                                            onChange={(event) =>
+                                                setSettingsList((prev) =>
+                                                    prev.map((row) =>
+                                                        row.id === setting.id
+                                                            ? {
+                                                                ...row,
+                                                                type: event.target
+                                                                    .value,
+                                                            }
+                                                            : row,
+                                                    ),
+                                                )
+                                            }
+                                        />
+                                    </div>
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-xs text-muted-foreground">Значение</label>
+                                    <Textarea
+                                        rows={3}
+                                        value={setting.value || ''}
                                         onChange={(event) =>
                                             setSettingsList((prev) =>
                                                 prev.map((row) =>
                                                     row.id === setting.id
                                                         ? {
-                                                              ...row,
-                                                              section:
-                                                                  event.target
-                                                                      .value,
-                                                          }
-                                                        : row,
-                                                ),
-                                            )
-                                        }
-                                    />
-                                    <Input
-                                        value={setting.key_name}
-                                        onChange={(event) =>
-                                            setSettingsList((prev) =>
-                                                prev.map((row) =>
-                                                    row.id === setting.id
-                                                        ? {
-                                                              ...row,
-                                                              key_name:
-                                                                  event.target
-                                                                      .value,
-                                                          }
-                                                        : row,
-                                                ),
-                                            )
-                                        }
-                                    />
-                                    <Input
-                                        className="md:col-span-2"
-                                        value={setting.type || 'text'}
-                                        onChange={(event) =>
-                                            setSettingsList((prev) =>
-                                                prev.map((row) =>
-                                                    row.id === setting.id
-                                                        ? {
-                                                              ...row,
-                                                              type: event.target
-                                                                  .value,
-                                                          }
+                                                            ...row,
+                                                            value: event.target
+                                                                .value,
+                                                        }
                                                         : row,
                                                 ),
                                             )
                                         }
                                     />
                                 </div>
-                                <Textarea
-                                    rows={4}
-                                    value={setting.value || ''}
-                                    onChange={(event) =>
-                                        setSettingsList((prev) =>
-                                            prev.map((row) =>
-                                                row.id === setting.id
-                                                    ? {
-                                                          ...row,
-                                                          value: event.target
-                                                              .value,
-                                                      }
-                                                    : row,
-                                            ),
-                                        )
-                                    }
-                                />
                                 <div className="flex gap-2">
                                     <Button
                                         type="button"
@@ -562,13 +648,14 @@ export default function Blog({ posts, pageSettings }: Props) {
                                             deleteSetting(setting.id)
                                         }
                                     >
+                                        <Trash2 className="mr-1 h-3.5 w-3.5" />
                                         Удалить
                                     </Button>
                                 </div>
                             </div>
                         ))}
                         {settingsList.length === 0 ? (
-                            <p className="rounded-lg border border-border px-3 py-6 text-center text-sm text-muted-foreground">
+                            <p className="rounded-xl border border-dashed border-border px-3 py-6 text-center text-sm text-muted-foreground">
                                 Настройки страницы пока отсутствуют.
                             </p>
                         ) : null}
@@ -578,30 +665,29 @@ export default function Blog({ posts, pageSettings }: Props) {
 
             <Card>
                 <CardContent className="flex flex-col gap-3 pt-6 lg:flex-row lg:items-center lg:justify-between">
-                    <Input
-                        className="max-w-xl"
-                        value={query}
-                        placeholder="Поиск по заголовку, slug, тексту"
-                        onChange={(event) => setQuery(event.target.value)}
-                    />
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand/10">
+                            <BookOpen className="h-5 w-5 text-brand" />
+                        </div>
+                        <p className="text-sm font-medium">
+                            Посты · {filteredPosts.length} из {list.length}
+                        </p>
+                    </div>
+                    <div className="relative max-w-xl flex-1">
+                        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                            className="pl-9"
+                            value={query}
+                            placeholder="Поиск по заголовку, slug, тексту..."
+                            onChange={(event) => setQuery(event.target.value)}
+                        />
+                    </div>
                 </CardContent>
             </Card>
 
-            {notice ? (
-                <p
-                    className={`rounded-lg px-3 py-2 text-sm ${
-                        notice.tone === 'success'
-                            ? 'bg-emerald-100 text-emerald-700'
-                            : 'bg-red-100 text-red-700'
-                    }`}
-                >
-                    {notice.text}
-                </p>
-            ) : null}
-
-            <div className="grid gap-3 xl:grid-cols-2">
+            <div className="grid gap-4 xl:grid-cols-2">
                 {filteredPosts.map((post) => (
-                    <Card key={post.id}>
+                    <Card key={post.id} className="transition-shadow hover:shadow-md">
                         <CardContent className="space-y-3 pt-6">
                             <div className="flex items-center justify-between gap-2">
                                 <p className="text-sm font-semibold">
@@ -617,160 +703,187 @@ export default function Blog({ posts, pageSettings }: Props) {
                                         : 'Черновик'}
                                 </Badge>
                             </div>
-                            <Input
-                                value={post.title}
-                                onChange={(event) =>
-                                    setList((prev) =>
-                                        prev.map((row) =>
-                                            row.id === post.id
-                                                ? {
-                                                      ...row,
-                                                      title: event.target.value,
-                                                  }
-                                                : row,
-                                        ),
-                                    )
-                                }
-                            />
-                            <Input
-                                value={post.slug}
-                                onChange={(event) =>
-                                    setList((prev) =>
-                                        prev.map((row) =>
-                                            row.id === post.id
-                                                ? {
-                                                      ...row,
-                                                      slug: event.target.value,
-                                                  }
-                                                : row,
-                                        ),
-                                    )
-                                }
-                            />
-                            <Input
-                                value={post.featured_image || ''}
-                                placeholder="Обложка (путь/URL)"
-                                onChange={(event) =>
-                                    setList((prev) =>
-                                        prev.map((row) =>
-                                            row.id === post.id
-                                                ? {
-                                                      ...row,
-                                                      featured_image:
-                                                          event.target.value,
-                                                  }
-                                                : row,
-                                        ),
-                                    )
-                                }
-                            />
-                            <Input
-                                value={post.author || ''}
-                                placeholder="Автор"
-                                onChange={(event) =>
-                                    setList((prev) =>
-                                        prev.map((row) =>
-                                            row.id === post.id
-                                                ? {
-                                                      ...row,
-                                                      author: event.target
-                                                          .value,
-                                                  }
-                                                : row,
-                                        ),
-                                    )
-                                }
-                            />
-                            <Textarea
-                                rows={4}
-                                value={post.excerpt || ''}
-                                placeholder="Краткое описание"
-                                onChange={(event) =>
-                                    setList((prev) =>
-                                        prev.map((row) =>
-                                            row.id === post.id
-                                                ? {
-                                                      ...row,
-                                                      excerpt:
-                                                          event.target.value,
-                                                  }
-                                                : row,
-                                        ),
-                                    )
-                                }
-                            />
-                            <Textarea
-                                rows={12}
-                                value={post.content}
-                                placeholder="Полный текст"
-                                onChange={(event) =>
-                                    setList((prev) =>
-                                        prev.map((row) =>
-                                            row.id === post.id
-                                                ? {
-                                                      ...row,
-                                                      content:
-                                                          event.target.value,
-                                                  }
-                                                : row,
-                                        ),
-                                    )
-                                }
-                            />
                             <div className="grid gap-3 md:grid-cols-2">
-                                <Input
-                                    type="datetime-local"
-                                    value={post.published_date || ''}
+                                <div className="space-y-1">
+                                    <label className="text-xs text-muted-foreground">Заголовок</label>
+                                    <Input
+                                        value={post.title}
+                                        onChange={(event) =>
+                                            setList((prev) =>
+                                                prev.map((row) =>
+                                                    row.id === post.id
+                                                        ? {
+                                                            ...row,
+                                                            title: event.target.value,
+                                                        }
+                                                        : row,
+                                                ),
+                                            )
+                                        }
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-xs text-muted-foreground">Slug</label>
+                                    <Input
+                                        value={post.slug}
+                                        onChange={(event) =>
+                                            setList((prev) =>
+                                                prev.map((row) =>
+                                                    row.id === post.id
+                                                        ? {
+                                                            ...row,
+                                                            slug: event.target.value,
+                                                        }
+                                                        : row,
+                                                ),
+                                            )
+                                        }
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-xs text-muted-foreground">Обложка</label>
+                                    <Input
+                                        value={post.featured_image || ''}
+                                        placeholder="Путь или URL"
+                                        onChange={(event) =>
+                                            setList((prev) =>
+                                                prev.map((row) =>
+                                                    row.id === post.id
+                                                        ? {
+                                                            ...row,
+                                                            featured_image:
+                                                                event.target.value,
+                                                        }
+                                                        : row,
+                                                ),
+                                            )
+                                        }
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-xs text-muted-foreground">Автор</label>
+                                    <Input
+                                        value={post.author || ''}
+                                        placeholder="Автор"
+                                        onChange={(event) =>
+                                            setList((prev) =>
+                                                prev.map((row) =>
+                                                    row.id === post.id
+                                                        ? {
+                                                            ...row,
+                                                            author: event.target
+                                                                .value,
+                                                        }
+                                                        : row,
+                                                ),
+                                            )
+                                        }
+                                    />
+                                </div>
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs text-muted-foreground">Краткое описание</label>
+                                <Textarea
+                                    rows={3}
+                                    value={post.excerpt || ''}
+                                    placeholder="Аннотация"
                                     onChange={(event) =>
                                         setList((prev) =>
                                             prev.map((row) =>
                                                 row.id === post.id
                                                     ? {
-                                                          ...row,
-                                                          published_date:
-                                                              event.target
-                                                                  .value,
-                                                      }
-                                                    : row,
-                                            ),
-                                        )
-                                    }
-                                />
-                                <Input
-                                    type="number"
-                                    value={post.sort_order ?? 0}
-                                    onChange={(event) =>
-                                        setList((prev) =>
-                                            prev.map((row) =>
-                                                row.id === post.id
-                                                    ? {
-                                                          ...row,
-                                                          sort_order: Number(
-                                                              event.target
-                                                                  .value,
-                                                          ),
-                                                      }
+                                                        ...row,
+                                                        excerpt:
+                                                            event.target.value,
+                                                    }
                                                     : row,
                                             ),
                                         )
                                     }
                                 />
                             </div>
+                            <div className="space-y-1">
+                                <label className="text-xs text-muted-foreground">Полный текст</label>
+                                <Textarea
+                                    rows={10}
+                                    value={post.content}
+                                    placeholder="Содержание"
+                                    onChange={(event) =>
+                                        setList((prev) =>
+                                            prev.map((row) =>
+                                                row.id === post.id
+                                                    ? {
+                                                        ...row,
+                                                        content:
+                                                            event.target.value,
+                                                    }
+                                                    : row,
+                                            ),
+                                        )
+                                    }
+                                />
+                            </div>
+                            <div className="grid gap-3 md:grid-cols-2">
+                                <div className="space-y-1">
+                                    <label className="text-xs text-muted-foreground">Дата публикации</label>
+                                    <Input
+                                        type="datetime-local"
+                                        value={post.published_date || ''}
+                                        onChange={(event) =>
+                                            setList((prev) =>
+                                                prev.map((row) =>
+                                                    row.id === post.id
+                                                        ? {
+                                                            ...row,
+                                                            published_date:
+                                                                event.target
+                                                                    .value,
+                                                        }
+                                                        : row,
+                                                ),
+                                            )
+                                        }
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-xs text-muted-foreground">Сортировка</label>
+                                    <Input
+                                        type="number"
+                                        value={post.sort_order ?? 0}
+                                        onChange={(event) =>
+                                            setList((prev) =>
+                                                prev.map((row) =>
+                                                    row.id === post.id
+                                                        ? {
+                                                            ...row,
+                                                            sort_order: Number(
+                                                                event.target
+                                                                    .value,
+                                                            ),
+                                                        }
+                                                        : row,
+                                                ),
+                                            )
+                                        }
+                                    />
+                                </div>
+                            </div>
                             <div className="flex items-center justify-between gap-2">
                                 <label className="inline-flex items-center gap-2 text-sm">
                                     <input
                                         type="checkbox"
+                                        className="accent-brand"
                                         checked={post.is_published}
                                         onChange={(event) =>
                                             setList((prev) =>
                                                 prev.map((row) =>
                                                     row.id === post.id
                                                         ? {
-                                                              ...row,
-                                                              is_published:
-                                                                  event.target
-                                                                      .checked,
-                                                          }
+                                                            ...row,
+                                                            is_published:
+                                                                event.target
+                                                                    .checked,
+                                                        }
                                                         : row,
                                                 ),
                                             )
@@ -779,11 +892,10 @@ export default function Blog({ posts, pageSettings }: Props) {
                                     Опубликован
                                 </label>
                                 <span className="text-xs text-muted-foreground">
-                                    Публикация:{' '}
                                     {formatShortDate(post.published_date)}
                                 </span>
                             </div>
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 border-t border-border/50 pt-3">
                                 <Button
                                     type="button"
                                     size="sm"
@@ -799,6 +911,7 @@ export default function Blog({ posts, pageSettings }: Props) {
                                     disabled={savingId === post.id}
                                     onClick={() => deletePost(post.id)}
                                 >
+                                    <Trash2 className="mr-1 h-3.5 w-3.5" />
                                     Удалить
                                 </Button>
                             </div>
@@ -806,7 +919,7 @@ export default function Blog({ posts, pageSettings }: Props) {
                     </Card>
                 ))}
                 {filteredPosts.length === 0 ? (
-                    <Card>
+                    <Card className="xl:col-span-2">
                         <CardContent className="py-10 text-center text-muted-foreground">
                             По заданным параметрам посты не найдены.
                         </CardContent>

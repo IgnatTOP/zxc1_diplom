@@ -7,6 +7,7 @@ use App\Models\AdminTelegramLink;
 use App\Models\SupportConversation;
 use App\Models\SupportMessage;
 use App\Services\Support\TelegramBotService;
+use App\Support\TelegramSettings;
 use Illuminate\Http\Request;
 
 class TelegramWebhookController extends Controller
@@ -17,7 +18,7 @@ class TelegramWebhookController extends Controller
 
     public function handle(Request $request, string $secret)
     {
-        if ($secret !== (string) config('services.telegram.webhook_secret')) {
+        if ($secret !== TelegramSettings::webhookSecret()) {
             abort(403);
         }
 

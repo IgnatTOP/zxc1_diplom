@@ -1,121 +1,210 @@
+import { Badge } from '@/shared/ui/badge';
 import { Card, CardContent } from '@/shared/ui/card';
-import { Reveal } from '@/shared/ui/motion';
+import { Reveal, Stagger } from '@/shared/ui/motion';
 import { SiteLayout } from '@/widgets/site/SiteLayout';
+import {
+    CalendarDays,
+    Clock,
+    Layers,
+    Sparkles,
+} from 'lucide-react';
+
+type ScheduleSlot = {
+    id: number;
+    day_of_week: string;
+    start_time: string;
+    end_time?: string | null;
+    instructor: string;
+    group?: { name?: string } | null;
+    section?: { name?: string } | null;
+};
 
 type Props = {
-    items: Array<{
-        id: number;
-        day_of_week: string;
-        start_time: string;
-        end_time?: string | null;
-        instructor: string;
-        group?: {
-            id: number;
-            name: string;
-            section?: { id: number; name: string };
-        };
-    }>;
+    slots?: ScheduleSlot[];
+    items?: ScheduleSlot[];
     meta?: { title?: string; description?: string; canonical?: string };
 };
 
-export default function Schedule({ items, meta }: Props) {
-    const activeDays = new Set(items.map((item) => item.day_of_week)).size;
+const dayOrder = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
+
+export default function Schedule({ slots, items, meta }: Props) {
+    const safeSlots = Array.isArray(slots)
+        ? slots
+        : Array.isArray(items)
+          ? items
+          : [];
+
+    const totalSlots = safeSlots.length;
+    const uniqueDays = [...new Set(safeSlots.map((s) => s.day_of_week))];
+    const uniqueSections = [
+        ...new Set(
+            safeSlots
+                .map((s) => s.section?.name)
+                .filter(Boolean),
+        ),
+    ];
+
+    // Group by day
+    const grouped = dayOrder
+        .filter((day) => safeSlots.some((s) => s.day_of_week === day))
+        .map((day) => ({
+            day,
+            items: safeSlots
+                .filter((s) => s.day_of_week === day)
+                .sort((a, b) => a.start_time.localeCompare(b.start_time)),
+        }));
 
     return (
         <SiteLayout meta={meta}>
+            {/* ─── Hero ─── */}
             <Reveal>
-                <h1 className="font-title text-3xl">Расписание</h1>
-                <p className="mt-2 max-w-3xl text-muted-foreground">
-                    Актуальная сетка занятий по всем направлениям. Время указано
-                    по местному часовому поясу студии.
-                </p>
+                <section className="relative overflow-hidden rounded-3xl border border-brand/20 p-8 lg:p-12">
+                    <div className="absolute inset-0 bg-gradient-to-br from-brand/12 via-brand/5 to-transparent" />
+                    <div className="absolute -right-24 -top-24 h-60 w-60 rounded-full bg-brand/10 blur-[80px]" />
+                    <div className="relative">
+                        <Badge variant="default" className="mb-4">
+                            <CalendarDays className="mr-1 h-3 w-3" />
+                            Расписание
+                        </Badge>
+                        <h1 className="max-w-xl font-title text-3xl font-bold leading-tight lg:text-4xl">
+                            Расписание{' '}
+                            <span className="bg-gradient-to-r from-brand-dark to-brand bg-clip-text text-transparent">
+                                занятий
+                            </span>
+                        </h1>
+                        <p className="mt-3 max-w-lg text-base leading-relaxed text-muted-foreground">
+                            Актуальное расписание на текущую неделю. Время
+                            занятий может меняться — следите за обновлениями в
+                            личном кабинете.
+                        </p>
+                    </div>
+                </section>
             </Reveal>
 
-            <Reveal className="mt-6" delayMs={60}>
-                <div className="grid gap-3 md:grid-cols-3">
-                    <Card>
-                        <CardContent className="p-4">
-                            <p className="text-sm text-muted-foreground">
-                                Активных слотов
+            {/* ─── Stats ─── */}
+            <Stagger className="mt-6 grid gap-4 sm:grid-cols-3">
+                <Card className="border-brand/10 transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-brand/5">
+                    <CardContent className="flex items-center gap-4 p-5">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-brand/20 to-brand/5">
+                            <CalendarDays className="h-5 w-5 text-brand-dark" />
+                        </div>
+                        <div>
+                            <p className="font-title text-2xl font-bold text-brand-dark">
+                                {totalSlots}
                             </p>
-                            <p className="mt-1 font-title text-2xl text-brand-dark">
-                                {items.length}
+                            <p className="text-xs uppercase tracking-[0.1em] text-muted-foreground">
+                                активных слотов
                             </p>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardContent className="p-4">
-                            <p className="text-sm text-muted-foreground">
-                                Дней недели
-                            </p>
-                            <p className="mt-1 font-title text-2xl text-brand-dark">
-                                {activeDays}
-                            </p>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardContent className="p-4">
-                            <p className="text-sm text-muted-foreground">
-                                Формат
-                            </p>
-                            <p className="mt-1 text-sm">
-                                Группы 60-90 минут, отслеживание через кабинет
-                            </p>
-                        </CardContent>
-                    </Card>
-                </div>
-            </Reveal>
-
-            <Reveal className="mt-8" delayMs={100}>
-                <div className="overflow-x-auto rounded-2xl border border-border bg-card">
-                    <table className="min-w-full text-left text-sm">
-                        <thead className="bg-surface/60 text-xs uppercase text-muted-foreground">
-                            <tr>
-                                <th className="px-4 py-3">День</th>
-                                <th className="px-4 py-3">Время</th>
-                                <th className="px-4 py-3">Группа</th>
-                                <th className="px-4 py-3">Секция</th>
-                                <th className="px-4 py-3">Тренер</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {items.map((item) => (
-                                <tr
-                                    key={item.id}
-                                    className="border-t border-border"
-                                >
-                                    <td className="px-4 py-3 font-medium">
-                                        {item.day_of_week}
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        {String(item.start_time).slice(0, 5)}
-                                        {item.end_time
-                                            ? ` - ${String(item.end_time).slice(0, 5)}`
-                                            : ''}
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        {item.group?.name || '—'}
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        {item.group?.section?.name || '—'}
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        {item.instructor}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            </Reveal>
-
-            {items.length === 0 ? (
-                <Card className="mt-6">
-                    <CardContent className="p-5 text-sm text-muted-foreground">
-                        Пока нет активных занятий.
+                        </div>
                     </CardContent>
                 </Card>
-            ) : null}
+                <Card className="border-brand/10 transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-brand/5">
+                    <CardContent className="flex items-center gap-4 p-5">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-brand/20 to-brand/5">
+                            <Sparkles className="h-5 w-5 text-brand-dark" />
+                        </div>
+                        <div>
+                            <p className="font-title text-2xl font-bold text-brand-dark">
+                                {uniqueDays.length}
+                            </p>
+                            <p className="text-xs uppercase tracking-[0.1em] text-muted-foreground">
+                                дней в неделе
+                            </p>
+                        </div>
+                    </CardContent>
+                </Card>
+                <Card className="border-brand/10 transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-brand/5">
+                    <CardContent className="flex items-center gap-4 p-5">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-brand/20 to-brand/5">
+                            <Layers className="h-5 w-5 text-brand-dark" />
+                        </div>
+                        <div>
+                            <p className="font-title text-2xl font-bold text-brand-dark">
+                                {uniqueSections.length}
+                            </p>
+                            <p className="text-xs uppercase tracking-[0.1em] text-muted-foreground">
+                                направлений
+                            </p>
+                        </div>
+                    </CardContent>
+                </Card>
+            </Stagger>
+
+            {/* ─── Schedule by Day ─── */}
+            <div className="mt-8 space-y-5">
+                {grouped.map(({ day, items }) => (
+                    <Reveal key={day}>
+                        <Card className="overflow-hidden border-brand/10">
+                            {/* Day header */}
+                            <div className="flex items-center gap-3 border-b border-brand/10 bg-gradient-to-r from-brand/8 to-transparent px-6 py-3.5">
+                                <CalendarDays className="h-4 w-4 text-brand-dark" />
+                                <h2 className="font-title text-base font-semibold">
+                                    {day}
+                                </h2>
+                                <Badge variant="muted" className="ml-auto">
+                                    {items.length}{' '}
+                                    {items.length === 1 ? 'занятие' : 'занятий'}
+                                </Badge>
+                            </div>
+
+                            {/* Slots */}
+                            <CardContent className="divide-y divide-border/60 p-0">
+                                {items.map((slot) => (
+                                    <div
+                                        key={slot.id}
+                                        className="flex items-center gap-4 px-6 py-3.5 transition-colors hover:bg-surface/50"
+                                    >
+                                        {/* Time */}
+                                        <div className="flex h-10 w-16 shrink-0 items-center justify-center rounded-xl bg-brand/10">
+                                            <span className="font-title text-sm font-bold text-brand-dark">
+                                                {String(slot.start_time).slice(
+                                                    0,
+                                                    5,
+                                                )}
+                                            </span>
+                                        </div>
+
+                                        {/* Info */}
+                                        <div className="flex-1">
+                                            <p className="text-sm font-medium">
+                                                {slot.group?.name ||
+                                                    slot.section?.name ||
+                                                    'Занятие'}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">
+                                                {slot.instructor}
+                                                {slot.section?.name &&
+                                                    slot.group?.name &&
+                                                    ` · ${slot.section.name}`}
+                                            </p>
+                                        </div>
+
+                                        {/* End time */}
+                                        {slot.end_time && (
+                                            <div className="hidden items-center gap-1 text-xs text-muted-foreground sm:flex">
+                                                <Clock className="h-3 w-3" />
+                                                до{' '}
+                                                {String(slot.end_time).slice(
+                                                    0,
+                                                    5,
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </CardContent>
+                        </Card>
+                    </Reveal>
+                ))}
+            </div>
+
+            {safeSlots.length === 0 && (
+                <Card className="mt-8">
+                    <CardContent className="py-12 text-center text-muted-foreground">
+                        Расписание пока не опубликовано
+                    </CardContent>
+                </Card>
+            )}
         </SiteLayout>
     );
 }

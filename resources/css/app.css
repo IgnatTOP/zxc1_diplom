@@ -5,6 +5,52 @@
 @layer base {
     :root {
         color-scheme: light;
+        --base-background: 252 250 251;
+        --base-foreground: 47 47 53;
+        --base-card: 255 255 255;
+        --base-card-foreground: 47 47 53;
+        --base-surface: 237 243 247;
+        --base-muted: 241 245 248;
+        --base-border: 214 225 234;
+        --base-muted-foreground: 95 106 115;
+        --base-brand: 125 184 213;
+        --base-brand-dark: 90 157 191;
+
+        --_dark-background: 15 22 32;
+        --_dark-foreground: 229 236 243;
+        --_dark-card: 24 34 47;
+        --_dark-card-foreground: 229 236 243;
+        --_dark-surface: 31 44 60;
+        --_dark-muted: 40 55 73;
+        --_dark-border: 62 79 99;
+        --_dark-muted-foreground: 161 177 194;
+        --_dark-brand: 110 179 214;
+        --_dark-brand-dark: 147 203 229;
+
+        --background: var(--base-background);
+        --foreground: var(--base-foreground);
+        --card: var(--base-card);
+        --card-foreground: var(--base-card-foreground);
+        --surface: var(--base-surface);
+        --muted: var(--base-muted);
+        --border: var(--base-border);
+        --muted-foreground: var(--base-muted-foreground);
+        --brand: var(--base-brand);
+        --brand-dark: var(--base-brand-dark);
+    }
+
+    .dark {
+        color-scheme: dark;
+        --background: var(--_dark-background);
+        --foreground: var(--_dark-foreground);
+        --card: var(--_dark-card);
+        --card-foreground: var(--_dark-card-foreground);
+        --surface: var(--_dark-surface);
+        --muted: var(--_dark-muted);
+        --border: var(--_dark-border);
+        --muted-foreground: var(--_dark-muted-foreground);
+        --brand: var(--_dark-brand);
+        --brand-dark: var(--_dark-brand-dark);
     }
 
     * {

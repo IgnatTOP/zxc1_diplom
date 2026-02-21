@@ -1,5 +1,6 @@
 import { apiGet, apiPatch, apiPost } from '@/shared/api/http';
 import { getApplicationStatusMeta } from '@/shared/lib/admin-labels';
+import { AdminSelect } from '@/shared/ui/admin-select';
 import { Badge } from '@/shared/ui/badge';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
@@ -21,7 +22,7 @@ type ApplicationItem = {
     level: string;
     status: string;
     assigned_group_id?: number | null;
-    assigned_group?: string | null;
+    assigned_group?: string | GroupOption | null;
     assigned_day?: string | null;
     assigned_time?: string | null;
     assigned_date?: string | null;
@@ -76,6 +77,26 @@ function getErrorMessage(error: unknown): string {
         : 'Не удалось выполнить запрос.';
 }
 
+function normalizeAssignedGroupName(
+    assignedGroup: ApplicationItem['assigned_group'],
+    fallbackAssignedGroup?: GroupOption | null,
+): string | null {
+    if (typeof assignedGroup === 'string') {
+        return assignedGroup;
+    }
+
+    if (
+        assignedGroup &&
+        typeof assignedGroup === 'object' &&
+        'name' in assignedGroup
+    ) {
+        const name = assignedGroup.name;
+        return typeof name === 'string' ? name : null;
+    }
+
+    return fallbackAssignedGroup?.name ?? null;
+}
+
 function normalizeItem(item: ApplicationItem): EditableApplicationItem {
     return {
         id: item.id,
@@ -87,7 +108,10 @@ function normalizeItem(item: ApplicationItem): EditableApplicationItem {
         status: item.status,
         assigned_group_id:
             item.assigned_group_id ?? item.assignedGroup?.id ?? null,
-        assigned_group: item.assigned_group ?? item.assignedGroup?.name ?? null,
+        assigned_group: normalizeAssignedGroupName(
+            item.assigned_group,
+            item.assignedGroup,
+        ),
         assigned_day: item.assigned_day || '',
         assigned_time: toTimeValue(item.assigned_time),
         assigned_date: toDateValue(item.assigned_date),
@@ -96,7 +120,343 @@ function normalizeItem(item: ApplicationItem): EditableApplicationItem {
     };
 }
 
-export default function Applications({ items, groups }: Props) {
+/* ── Inline row for desktop table ── */
+function ApplicationRow({
+    item,
+    groups,
+    statusOptions,
+    savingId,
+    onUpdate,
+    onAutoAssign,
+    onPatch,
+}: {
+    item: EditableApplicationItem;
+    groups: GroupOption[];
+    statusOptions: string[];
+    savingId: number | null;
+    onUpdate: (item: EditableApplicationItem) => void;
+    onAutoAssign: (id: number) => void;
+    onPatch: (id: number, patch: Partial<EditableApplicationItem>) => void;
+}) {
+    const statusMeta = getApplicationStatusMeta(item.status);
+
+    return (
+        <tr className="border-t border-border/60 align-top">
+            <td className="px-4 py-3">
+                <span className="font-mono text-xs text-muted-foreground">
+                    #{item.id}
+                </span>
+            </td>
+            <td className="space-y-1 px-4 py-3">
+                <p className="font-medium">{item.name}</p>
+                <p className="text-xs text-muted-foreground">{item.phone}</p>
+                <p className="text-xs text-muted-foreground">
+                    {item.email || 'Без email'}
+                </p>
+            </td>
+            <td className="px-4 py-3">
+                <p>{item.style}</p>
+                <p className="text-xs text-muted-foreground">{item.level}</p>
+            </td>
+            <td className="space-y-2 px-4 py-3">
+                <Badge variant={statusMeta.tone}>{statusMeta.label}</Badge>
+                <AdminSelect
+                    value={item.status.toLowerCase()}
+                    onChange={(e) =>
+                        onPatch(item.id, { status: e.target.value })
+                    }
+                >
+                    {statusOptions.map((status) => (
+                        <option key={status} value={status}>
+                            {getApplicationStatusMeta(status).label}
+                        </option>
+                    ))}
+                </AdminSelect>
+            </td>
+            <td className="px-4 py-3">
+                <AdminSelect
+                    value={item.assigned_group_id ?? ''}
+                    onChange={(e) =>
+                        onPatch(item.id, {
+                            assigned_group_id: e.target.value
+                                ? Number(e.target.value)
+                                : null,
+                            assigned_group:
+                                groups.find(
+                                    (g) => g.id === Number(e.target.value),
+                                )?.name || null,
+                        })
+                    }
+                >
+                    <option value="">Не выбрана</option>
+                    {groups.map((group) => (
+                        <option key={group.id} value={group.id}>
+                            {group.name}
+                        </option>
+                    ))}
+                </AdminSelect>
+            </td>
+            <td className="space-y-2 px-4 py-3">
+                <AdminSelect
+                    value={item.assigned_day}
+                    onChange={(e) =>
+                        onPatch(item.id, { assigned_day: e.target.value })
+                    }
+                >
+                    <option value="">День не выбран</option>
+                    {weekDays.map((day) => (
+                        <option key={day} value={day}>
+                            {day}
+                        </option>
+                    ))}
+                </AdminSelect>
+                <Input
+                    type="time"
+                    value={item.assigned_time}
+                    onChange={(e) =>
+                        onPatch(item.id, { assigned_time: e.target.value })
+                    }
+                />
+            </td>
+            <td className="px-4 py-3">
+                <Input
+                    type="date"
+                    value={item.assigned_date}
+                    onChange={(e) =>
+                        onPatch(item.id, { assigned_date: e.target.value })
+                    }
+                />
+            </td>
+            <td className="px-4 py-3">
+                <Textarea
+                    rows={3}
+                    placeholder="Комментарий по заявке"
+                    value={item.notes}
+                    onChange={(e) =>
+                        onPatch(item.id, { notes: e.target.value })
+                    }
+                />
+            </td>
+            <td className="px-4 py-3">
+                <div className="flex flex-col gap-2">
+                    <Button
+                        type="button"
+                        size="sm"
+                        disabled={savingId === item.id}
+                        onClick={() => onUpdate(item)}
+                    >
+                        Сохранить
+                    </Button>
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        disabled={savingId === item.id}
+                        onClick={() => onAutoAssign(item.id)}
+                    >
+                        Подобрать группу
+                    </Button>
+                </div>
+            </td>
+        </tr>
+    );
+}
+
+/* ── Mobile card ── */
+function ApplicationCard({
+    item,
+    groups,
+    statusOptions,
+    savingId,
+    onUpdate,
+    onAutoAssign,
+    onPatch,
+}: {
+    item: EditableApplicationItem;
+    groups: GroupOption[];
+    statusOptions: string[];
+    savingId: number | null;
+    onUpdate: (item: EditableApplicationItem) => void;
+    onAutoAssign: (id: number) => void;
+    onPatch: (id: number, patch: Partial<EditableApplicationItem>) => void;
+}) {
+    const statusMeta = getApplicationStatusMeta(item.status);
+
+    return (
+        <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+            {/* Header */}
+            <div className="mb-3 flex items-start justify-between">
+                <div>
+                    <p className="font-semibold">{item.name}</p>
+                    <p className="text-xs text-muted-foreground">{item.phone}</p>
+                    <p className="text-xs text-muted-foreground">
+                        {item.email || 'Без email'}
+                    </p>
+                </div>
+                <div className="flex items-center gap-2">
+                    <Badge variant={statusMeta.tone}>{statusMeta.label}</Badge>
+                    <span className="font-mono text-xs text-muted-foreground">
+                        #{item.id}
+                    </span>
+                </div>
+            </div>
+
+            {/* Info */}
+            <div className="mb-3 flex flex-wrap gap-2 text-sm">
+                <span className="rounded-lg bg-surface px-2 py-1 text-xs">
+                    {item.style}
+                </span>
+                <span className="rounded-lg bg-surface px-2 py-1 text-xs">
+                    {item.level}
+                </span>
+                {item.assigned_group && (
+                    <span className="rounded-lg bg-brand/10 px-2 py-1 text-xs text-brand-dark">
+                        {item.assigned_group}
+                    </span>
+                )}
+            </div>
+
+            {/* Editable fields */}
+            <div className="space-y-3">
+                <div>
+                    <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                        Статус
+                    </label>
+                    <AdminSelect
+                        value={item.status.toLowerCase()}
+                        onChange={(e) =>
+                            onPatch(item.id, { status: e.target.value })
+                        }
+                    >
+                        {statusOptions.map((status) => (
+                            <option key={status} value={status}>
+                                {getApplicationStatusMeta(status).label}
+                            </option>
+                        ))}
+                    </AdminSelect>
+                </div>
+
+                <div>
+                    <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                        Группа
+                    </label>
+                    <AdminSelect
+                        value={item.assigned_group_id ?? ''}
+                        onChange={(e) =>
+                            onPatch(item.id, {
+                                assigned_group_id: e.target.value
+                                    ? Number(e.target.value)
+                                    : null,
+                                assigned_group:
+                                    groups.find(
+                                        (g) =>
+                                            g.id === Number(e.target.value),
+                                    )?.name || null,
+                            })
+                        }
+                    >
+                        <option value="">Не выбрана</option>
+                        {groups.map((group) => (
+                            <option key={group.id} value={group.id}>
+                                {group.name}
+                            </option>
+                        ))}
+                    </AdminSelect>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                    <div>
+                        <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                            День
+                        </label>
+                        <AdminSelect
+                            value={item.assigned_day}
+                            onChange={(e) =>
+                                onPatch(item.id, {
+                                    assigned_day: e.target.value,
+                                })
+                            }
+                        >
+                            <option value="">—</option>
+                            {weekDays.map((day) => (
+                                <option key={day} value={day}>
+                                    {day}
+                                </option>
+                            ))}
+                        </AdminSelect>
+                    </div>
+                    <div>
+                        <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                            Время
+                        </label>
+                        <Input
+                            type="time"
+                            value={item.assigned_time}
+                            onChange={(e) =>
+                                onPatch(item.id, {
+                                    assigned_time: e.target.value,
+                                })
+                            }
+                        />
+                    </div>
+                </div>
+
+                <div>
+                    <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                        Дата
+                    </label>
+                    <Input
+                        type="date"
+                        value={item.assigned_date}
+                        onChange={(e) =>
+                            onPatch(item.id, { assigned_date: e.target.value })
+                        }
+                    />
+                </div>
+
+                <div>
+                    <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                        Заметка
+                    </label>
+                    <Textarea
+                        rows={2}
+                        placeholder="Комментарий"
+                        value={item.notes}
+                        onChange={(e) =>
+                            onPatch(item.id, { notes: e.target.value })
+                        }
+                    />
+                </div>
+            </div>
+
+            {/* Actions */}
+            <div className="mt-4 flex gap-2">
+                <Button
+                    type="button"
+                    size="sm"
+                    className="flex-1"
+                    disabled={savingId === item.id}
+                    onClick={() => onUpdate(item)}
+                >
+                    Сохранить
+                </Button>
+                <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    className="flex-1"
+                    disabled={savingId === item.id}
+                    onClick={() => onAutoAssign(item.id)}
+                >
+                    Подобрать группу
+                </Button>
+            </div>
+        </div>
+    );
+}
+
+/* ── Main page ── */
+export default function Applications({ items = [], groups = [] }: Props) {
     const [list, setList] = useState<EditableApplicationItem[]>(() =>
         items.map(normalizeItem),
     );
@@ -250,283 +610,163 @@ export default function Applications({ items, groups }: Props) {
 
     return (
         <AdminLayout title="Заявки">
-            <div className="rounded-2xl border border-border bg-card p-4">
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                    <div className="space-y-1">
-                        <p className="text-sm font-semibold">
-                            Управление заявками и назначениями
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                            Поиск работает по имени, телефону, email, стилю,
-                            уровню, группе и заметке.
-                        </p>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                        <Input
-                            className="min-w-[280px]"
-                            value={query}
-                            placeholder="Поиск заявки"
-                            onChange={(event) => setQuery(event.target.value)}
-                        />
-                        <Button
-                            type="button"
-                            disabled={isAutoAssigningAll}
-                            onClick={autoAssignAll}
-                        >
-                            Распределить все новые
-                        </Button>
-                    </div>
-                </div>
-
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                    {['all', ...statusOptions].map((status) => {
-                        const selected = statusFilter === status;
-                        const meta =
-                            status === 'all'
-                                ? {
-                                      label: 'Все заявки',
-                                      tone: 'muted' as const,
-                                  }
-                                : getApplicationStatusMeta(status);
-
-                        return (
-                            <button
+            <div className="space-y-4">
+                {/* Filters */}
+                <div className="rounded-2xl border border-border bg-card p-4">
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                        <div className="space-y-1">
+                            <p className="text-sm font-semibold">
+                                Управление заявками и назначениями
+                            </p>
+                            <p className="hidden text-sm text-muted-foreground sm:block">
+                                Поиск работает по имени, телефону, email, стилю,
+                                уровню, группе и заметке.
+                            </p>
+                        </div>
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                            <Input
+                                className="w-full sm:min-w-[280px]"
+                                value={query}
+                                placeholder="Поиск заявки"
+                                onChange={(event) =>
+                                    setQuery(event.target.value)
+                                }
+                            />
+                            <Button
                                 type="button"
-                                key={status}
-                                className={`rounded-lg border px-3 py-1.5 text-sm transition ${
-                                    selected
-                                        ? 'border-brand bg-brand/10 font-semibold text-brand-dark'
-                                        : 'border-border text-foreground hover:bg-surface'
-                                }`}
-                                onClick={() => setStatusFilter(status)}
+                                className="w-full shrink-0 sm:w-auto"
+                                disabled={isAutoAssigningAll}
+                                onClick={autoAssignAll}
                             >
-                                {meta.label}: {statusCounts[status] ?? 0}
-                            </button>
-                        );
-                    })}
-                </div>
-            </div>
+                                Распределить все новые
+                            </Button>
+                        </div>
+                    </div>
 
-            {notice ? (
-                <p
-                    className={`rounded-lg px-3 py-2 text-sm ${
-                        notice.tone === 'success'
-                            ? 'bg-emerald-100 text-emerald-700'
-                            : 'bg-red-100 text-red-700'
-                    }`}
-                >
-                    {notice.text}
-                </p>
-            ) : null}
-
-            <div className="overflow-x-auto rounded-2xl border border-border bg-card">
-                <table className="min-w-[1500px] text-left text-sm">
-                    <thead className="bg-surface/70 text-xs uppercase text-muted-foreground">
-                        <tr>
-                            <th className="px-4 py-3">ID</th>
-                            <th className="min-w-[210px] px-4 py-3">Клиент</th>
-                            <th className="min-w-[160px] px-4 py-3">
-                                Стиль / уровень
-                            </th>
-                            <th className="min-w-[220px] px-4 py-3">Статус</th>
-                            <th className="min-w-[220px] px-4 py-3">Группа</th>
-                            <th className="min-w-[220px] px-4 py-3">
-                                День / время
-                            </th>
-                            <th className="min-w-[160px] px-4 py-3">Дата</th>
-                            <th className="min-w-[320px] px-4 py-3">Заметка</th>
-                            <th className="min-w-[170px] px-4 py-3">
-                                Действия
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {filteredList.map((item) => {
-                            const statusMeta = getApplicationStatusMeta(
-                                item.status,
-                            );
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                        {['all', ...statusOptions].map((status) => {
+                            const selected = statusFilter === status;
+                            const meta =
+                                status === 'all'
+                                    ? {
+                                        label: 'Все',
+                                        tone: 'muted' as const,
+                                    }
+                                    : getApplicationStatusMeta(status);
 
                             return (
-                                <tr
-                                    key={item.id}
-                                    className="border-t border-border/60 align-top"
+                                <button
+                                    type="button"
+                                    key={status}
+                                    className={`rounded-lg border px-3 py-1.5 text-sm transition ${selected
+                                            ? 'border-brand bg-brand/10 font-semibold text-brand-dark'
+                                            : 'border-border text-foreground hover:bg-surface'
+                                        }`}
+                                    onClick={() => setStatusFilter(status)}
                                 >
-                                    <td className="px-4 py-3">#{item.id}</td>
-                                    <td className="space-y-1 px-4 py-3">
-                                        <p className="font-medium">
-                                            {item.name}
-                                        </p>
-                                        <p className="text-xs text-muted-foreground">
-                                            {item.phone}
-                                        </p>
-                                        <p className="text-xs text-muted-foreground">
-                                            {item.email || 'Без email'}
-                                        </p>
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        <p>{item.style}</p>
-                                        <p className="text-xs text-muted-foreground">
-                                            {item.level}
-                                        </p>
-                                    </td>
-                                    <td className="space-y-2 px-4 py-3">
-                                        <Badge variant={statusMeta.tone}>
-                                            {statusMeta.label}
-                                        </Badge>
-                                        <select
-                                            className="h-10 w-full rounded-lg border border-border px-2"
-                                            value={item.status.toLowerCase()}
-                                            onChange={(event) =>
-                                                updateRow(item.id, {
-                                                    status: event.target.value,
-                                                })
-                                            }
-                                        >
-                                            {statusOptions.map((status) => (
-                                                <option
-                                                    key={status}
-                                                    value={status}
-                                                >
-                                                    {
-                                                        getApplicationStatusMeta(
-                                                            status,
-                                                        ).label
-                                                    }
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        <select
-                                            className="h-10 w-full rounded-lg border border-border px-2"
-                                            value={item.assigned_group_id ?? ''}
-                                            onChange={(event) =>
-                                                updateRow(item.id, {
-                                                    assigned_group_id: event
-                                                        .target.value
-                                                        ? Number(
-                                                              event.target
-                                                                  .value,
-                                                          )
-                                                        : null,
-                                                    assigned_group:
-                                                        groups.find(
-                                                            (group) =>
-                                                                group.id ===
-                                                                Number(
-                                                                    event.target
-                                                                        .value,
-                                                                ),
-                                                        )?.name || null,
-                                                })
-                                            }
-                                        >
-                                            <option value="">Не выбрана</option>
-                                            {groups.map((group) => (
-                                                <option
-                                                    key={group.id}
-                                                    value={group.id}
-                                                >
-                                                    {group.name}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </td>
-                                    <td className="space-y-2 px-4 py-3">
-                                        <select
-                                            className="h-10 w-full rounded-lg border border-border px-2"
-                                            value={item.assigned_day}
-                                            onChange={(event) =>
-                                                updateRow(item.id, {
-                                                    assigned_day:
-                                                        event.target.value,
-                                                })
-                                            }
-                                        >
-                                            <option value="">
-                                                День не выбран
-                                            </option>
-                                            {weekDays.map((day) => (
-                                                <option key={day} value={day}>
-                                                    {day}
-                                                </option>
-                                            ))}
-                                        </select>
-                                        <Input
-                                            type="time"
-                                            value={item.assigned_time}
-                                            onChange={(event) =>
-                                                updateRow(item.id, {
-                                                    assigned_time:
-                                                        event.target.value,
-                                                })
-                                            }
-                                        />
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        <Input
-                                            type="date"
-                                            value={item.assigned_date}
-                                            onChange={(event) =>
-                                                updateRow(item.id, {
-                                                    assigned_date:
-                                                        event.target.value,
-                                                })
-                                            }
-                                        />
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        <Textarea
-                                            rows={3}
-                                            placeholder="Комментарий по заявке"
-                                            value={item.notes}
-                                            onChange={(event) =>
-                                                updateRow(item.id, {
-                                                    notes: event.target.value,
-                                                })
-                                            }
-                                        />
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        <div className="flex flex-col gap-2">
-                                            <Button
-                                                type="button"
-                                                size="sm"
-                                                disabled={savingId === item.id}
-                                                onClick={() => update(item)}
-                                            >
-                                                Сохранить
-                                            </Button>
-                                            <Button
-                                                type="button"
-                                                size="sm"
-                                                variant="secondary"
-                                                disabled={savingId === item.id}
-                                                onClick={() =>
-                                                    autoAssign(item.id)
-                                                }
-                                            >
-                                                Подобрать группу
-                                            </Button>
-                                        </div>
-                                    </td>
-                                </tr>
+                                    {meta.label}: {statusCounts[status] ?? 0}
+                                </button>
                             );
                         })}
-                        {filteredList.length === 0 ? (
+                    </div>
+                </div>
+
+                {/* Notice */}
+                {notice && (
+                    <p
+                        className={`rounded-xl px-4 py-3 text-sm font-medium ${notice.tone === 'success'
+                                ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400'
+                                : 'bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400'
+                            }`}
+                    >
+                        {notice.text}
+                    </p>
+                )}
+
+                {/* Desktop table */}
+                <div className="hidden overflow-x-auto rounded-2xl border border-border bg-card md:block">
+                    <table className="w-full text-left text-sm">
+                        <thead className="border-b border-border text-xs uppercase text-muted-foreground">
                             <tr>
-                                <td
-                                    className="px-4 py-6 text-center text-muted-foreground"
-                                    colSpan={9}
-                                >
-                                    {list.length === 0
-                                        ? 'Заявок пока нет.'
-                                        : 'По заданным фильтрам ничего не найдено.'}
-                                </td>
+                                <th className="px-4 py-3">ID</th>
+                                <th className="min-w-[180px] px-4 py-3">
+                                    Клиент
+                                </th>
+                                <th className="min-w-[120px] px-4 py-3">
+                                    Стиль / уровень
+                                </th>
+                                <th className="min-w-[180px] px-4 py-3">
+                                    Статус
+                                </th>
+                                <th className="min-w-[180px] px-4 py-3">
+                                    Группа
+                                </th>
+                                <th className="min-w-[180px] px-4 py-3">
+                                    День / время
+                                </th>
+                                <th className="min-w-[140px] px-4 py-3">
+                                    Дата
+                                </th>
+                                <th className="min-w-[200px] px-4 py-3">
+                                    Заметка
+                                </th>
+                                <th className="min-w-[150px] px-4 py-3">
+                                    Действия
+                                </th>
                             </tr>
-                        ) : null}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            {filteredList.map((item) => (
+                                <ApplicationRow
+                                    key={item.id}
+                                    item={item}
+                                    groups={groups}
+                                    statusOptions={statusOptions}
+                                    savingId={savingId}
+                                    onUpdate={update}
+                                    onAutoAssign={autoAssign}
+                                    onPatch={updateRow}
+                                />
+                            ))}
+                            {filteredList.length === 0 && (
+                                <tr>
+                                    <td
+                                        className="px-4 py-8 text-center text-muted-foreground"
+                                        colSpan={9}
+                                    >
+                                        {list.length === 0
+                                            ? 'Заявок пока нет.'
+                                            : 'По заданным фильтрам ничего не найдено.'}
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+
+                {/* Mobile cards */}
+                <div className="flex flex-col gap-3 md:hidden">
+                    {filteredList.length === 0 ? (
+                        <div className="py-12 text-center text-sm text-muted-foreground">
+                            {list.length === 0
+                                ? 'Заявок пока нет.'
+                                : 'По заданным фильтрам ничего не найдено.'}
+                        </div>
+                    ) : (
+                        filteredList.map((item) => (
+                            <ApplicationCard
+                                key={item.id}
+                                item={item}
+                                groups={groups}
+                                statusOptions={statusOptions}
+                                savingId={savingId}
+                                onUpdate={update}
+                                onAutoAssign={autoAssign}
+                                onPatch={updateRow}
+                            />
+                        ))
+                    )}
+                </div>
             </div>
         </AdminLayout>
     );

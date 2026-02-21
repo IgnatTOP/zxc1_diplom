@@ -4,7 +4,7 @@ import { SeoHead } from '@/shared/ui/seo-head';
 import type { PageProps } from '@/types';
 import { SupportWidget } from '@/widgets/support/SupportWidget';
 import { Link, usePage } from '@inertiajs/react';
-import { Menu } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 import { PropsWithChildren, useMemo, useState } from 'react';
 
 type Props = PropsWithChildren<{
@@ -32,20 +32,25 @@ export function SiteLayout({ children, meta }: Props) {
     const currentUrl = page.url;
     const user = page.props.auth.user;
 
+    const isActive = (href: string) =>
+        href === '/' ? currentUrl === '/' : currentUrl.startsWith(href);
+
     const navLinks = useMemo(
         () =>
             links.map((link) => (
                 <Link
                     key={link.href}
                     href={link.href}
-                    className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
-                        currentUrl === link.href
-                            ? 'bg-brand/15 text-brand-dark'
-                            : 'text-foreground hover:bg-brand/10 hover:text-brand-dark'
-                    }`}
+                    className={`relative rounded-lg px-3 py-2 text-sm font-medium transition-colors ${isActive(link.href)
+                            ? 'text-brand-dark'
+                            : 'text-foreground hover:text-brand-dark'
+                        }`}
                     onClick={() => setOpen(false)}
                 >
                     {link.label}
+                    {isActive(link.href) && (
+                        <span className="absolute bottom-0 left-1/2 h-0.5 w-6 -translate-x-1/2 rounded-full bg-gradient-to-r from-brand to-brand-dark" />
+                    )}
                 </Link>
             )),
         [currentUrl],
@@ -72,28 +77,33 @@ export function SiteLayout({ children, meta }: Props) {
                         {navLinks}
                     </nav>
 
-                    <div className="hidden items-center gap-2 lg:flex">
+                    <div className="hidden items-center gap-3 lg:flex">
                         {user ? (
                             <>
-                                {user.role === 'admin' ? (
+                                {user.role === 'admin' && (
                                     <Link
                                         href="/admin"
-                                        className="text-sm text-muted-foreground hover:text-foreground"
+                                        className="rounded-lg px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-brand/10 hover:text-brand-dark"
                                     >
                                         Админка
                                     </Link>
-                                ) : null}
+                                )}
                                 <Link
                                     href="/profile"
-                                    className="text-sm text-muted-foreground hover:text-foreground"
+                                    className="inline-flex items-center gap-2 rounded-xl border border-brand/20 bg-brand/5 px-3.5 py-1.5 text-sm font-medium text-brand-dark transition-colors hover:bg-brand/10"
                                 >
+                                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand/20 text-[10px] font-bold">
+                                        {(user.name || user.email)
+                                            .charAt(0)
+                                            .toUpperCase()}
+                                    </span>
                                     Кабинет
                                 </Link>
                             </>
                         ) : (
                             <Link
                                 href="/login"
-                                className="text-sm text-muted-foreground hover:text-foreground"
+                                className="rounded-xl border border-brand/20 bg-brand/5 px-4 py-1.5 text-sm font-medium text-brand-dark transition-colors hover:bg-brand/10"
                             >
                                 Войти
                             </Link>
@@ -107,49 +117,97 @@ export function SiteLayout({ children, meta }: Props) {
                         className="dw-scale-in lg:hidden"
                         onClick={() => setOpen((value) => !value)}
                     >
-                        <Menu className="h-5 w-5" />
+                        {open ? (
+                            <X className="h-5 w-5" />
+                        ) : (
+                            <Menu className="h-5 w-5" />
+                        )}
                     </Button>
                 </div>
 
-                {open ? (
-                    <nav className="dw-page-enter space-y-1 border-t border-border p-3 lg:hidden">
+                {open && (
+                    <nav className="dw-page-enter space-y-1 border-t border-border/80 bg-background/95 p-3 backdrop-blur-md lg:hidden">
                         {navLinks}
+                        <div className="border-t border-border/60 pt-2">
+                            {user ? (
+                                <>
+                                    {user.role === 'admin' && (
+                                        <Link
+                                            href="/admin"
+                                            className="block rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
+                                            onClick={() => setOpen(false)}
+                                        >
+                                            Админка
+                                        </Link>
+                                    )}
+                                    <Link
+                                        href="/profile"
+                                        className="block rounded-lg px-3 py-2 text-sm font-medium text-brand-dark"
+                                        onClick={() => setOpen(false)}
+                                    >
+                                        Кабинет
+                                    </Link>
+                                </>
+                            ) : (
+                                <Link
+                                    href="/login"
+                                    className="block rounded-lg px-3 py-2 text-sm font-medium text-brand-dark"
+                                    onClick={() => setOpen(false)}
+                                >
+                                    Войти
+                                </Link>
+                            )}
+                        </div>
                     </nav>
-                ) : null}
+                )}
             </header>
 
             <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
                 <PageTransition pageKey={currentUrl}>{children}</PageTransition>
             </main>
 
-            <footer className="border-t border-border/80 bg-surface/20">
-                <div className="mx-auto grid w-full max-w-7xl gap-5 px-4 py-8 text-sm text-muted-foreground sm:px-6 lg:grid-cols-3 lg:px-8">
+            <footer className="border-t border-border/80 bg-surface/30">
+                <div className="mx-auto grid w-full max-w-7xl gap-8 px-4 py-10 sm:px-6 lg:grid-cols-3 lg:px-8">
                     <div>
-                        <p className="font-semibold text-foreground">
-                            © {new Date().getFullYear()} DanceWave
-                        </p>
-                        <p className="mt-2">
+                        <Link href="/" className="font-title text-lg font-bold text-brand-dark">
+                            DanceWave
+                        </Link>
+                        <p className="mt-2 text-sm text-muted-foreground">
                             Современная студия танцев с личным кабинетом,
                             поддержкой и прозрачной оплатой.
                         </p>
+                        <p className="mt-3 text-xs text-muted-foreground">
+                            © {new Date().getFullYear()} DanceWave. Все права
+                            защищены.
+                        </p>
                     </div>
                     <div>
-                        <p className="font-semibold text-foreground">
+                        <p className="text-sm font-semibold text-foreground">
                             Контакты
                         </p>
-                        <div className="mt-2 flex flex-col gap-1">
-                            <a href="tel:+79991234567">+7 (999) 123-45-67</a>
-                            <a href="mailto:hello@dancewave.ru">
+                        <div className="mt-3 flex flex-col gap-1.5 text-sm text-muted-foreground">
+                            <a
+                                href="tel:+79991234567"
+                                className="transition-colors hover:text-brand-dark"
+                            >
+                                +7 (999) 123-45-67
+                            </a>
+                            <a
+                                href="mailto:hello@dancewave.ru"
+                                className="transition-colors hover:text-brand-dark"
+                            >
                                 hello@dancewave.ru
                             </a>
                             <p>Москва, ул. Танцевальная, 12</p>
                         </div>
                     </div>
                     <div>
-                        <p className="font-semibold text-foreground">Режим</p>
-                        <div className="mt-2 flex flex-col gap-1">
-                            <p>Пн-Пт: 09:00-22:00</p>
-                            <p>Сб-Вс: 10:00-20:00</p>
+                        <p className="text-sm font-semibold text-foreground">
+                            Режим работы
+                        </p>
+                        <div className="mt-3 flex flex-col gap-1.5 text-sm text-muted-foreground">
+                            <p>Пн–Пт: 09:00–22:00</p>
+                            <p>Сб–Вс: 10:00–20:00</p>
                             <p>Поддержка в чате ежедневно</p>
                         </div>
                     </div>

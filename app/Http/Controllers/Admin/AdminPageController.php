@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AdminTelegramLink;
 use App\Models\Application;
 use App\Models\BlogPost;
 use App\Models\Enrollment;
@@ -13,6 +14,7 @@ use App\Models\Section;
 use App\Models\SectionNews;
 use App\Models\SupportConversation;
 use App\Models\User;
+use App\Support\TelegramSettings;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -20,18 +22,28 @@ class AdminPageController extends Controller
 {
     public function dashboard(): Response
     {
+        $stats = [
+            'users' => User::query()->count(),
+            'applications' => Application::query()->count(),
+            'groups' => Group::query()->count(),
+            'activeGroups' => Group::query()->where('is_active', true)->count(),
+            'scheduleItems' => GroupScheduleItem::query()->where('is_active', true)->count(),
+            'blogPosts' => BlogPost::query()->count(),
+            'sectionNews' => SectionNews::query()->count(),
+            'galleryItems' => Gallery::query()->count(),
+            'supportOpen' => SupportConversation::query()->where('status', 'open')->count(),
+            'enrollments' => Enrollment::query()->count(),
+            'sections' => Section::query()->count(),
+        ];
+
         return Inertia::render('Admin/Dashboard', [
             'stats' => [
-                'users' => User::query()->count(),
-                'applications' => Application::query()->count(),
-                'groups' => Group::query()->count(),
-                'activeGroups' => Group::query()->where('is_active', true)->count(),
-                'scheduleItems' => GroupScheduleItem::query()->where('is_active', true)->count(),
-                'blogPosts' => BlogPost::query()->count(),
-                'sectionNews' => SectionNews::query()->count(),
-                'galleryItems' => Gallery::query()->count(),
-                'supportOpen' => SupportConversation::query()->where('status', 'open')->count(),
-                'enrollments' => Enrollment::query()->count(),
+                ...$stats,
+                // Frontend-compatible aliases.
+                'support' => $stats['supportOpen'],
+                'schedule' => $stats['scheduleItems'],
+                'gallery' => $stats['galleryItems'],
+                'news' => $stats['sectionNews'],
             ],
         ]);
     }
@@ -89,15 +101,41 @@ class AdminPageController extends Controller
 
     public function users(): Response
     {
+        $users = User::query()
+            ->with([
+                'enrollments' => fn ($query) => $query->whereIn('status', ['active', 'paused'])
+                    ->with([
+                        'group:id,name',
+                        'group.scheduleItems' => fn ($q) => $q->where('is_active', true)->orderBy('sort_order'),
+                        'section:id,name'
+                    ]),
+            ])
+            ->latest('id')
+            ->get(['id', 'name', 'email', 'role', 'created_at']);
+
+        // Fetch active groups for the dropdown
+        $groups = Group::query()
+            ->where('is_active', true)
+            ->with('scheduleItems:id,group_id,instructor,day_of_week,start_time,end_time')
+            ->orderBy('name')
+            ->get(['id', 'name', 'section_id']);
+
         return Inertia::render('Admin/Users', [
-            'items' => User::query()->latest('id')->get(['id', 'name', 'email', 'role', 'created_at']),
+            'users' => $users,
+            // Keep backward compatibility with older frontend contracts.
+            'items' => $users,
+            'groups' => $groups,
         ]);
     }
 
     public function sections(): Response
     {
+        $sections = Section::query()->orderBy('sort_order')->get();
+
         return Inertia::render('Admin/Sections', [
-            'items' => Section::query()->orderBy('sort_order')->get(),
+            'sections' => $sections,
+            // Keep backward compatibility with older frontend contracts.
+            'items' => $sections,
         ]);
     }
 
@@ -122,6 +160,7 @@ class AdminPageController extends Controller
             ->get();
 
         return Inertia::render('Admin/Support', [
+            'tickets' => $items,
             'items' => $items,
             'admins' => User::query()
                 ->where('role', 'admin')
@@ -135,6 +174,29 @@ class AdminPageController extends Controller
         return Inertia::render('Admin/Billing', [
             'enrollments' => Enrollment::query()->with(['user:id,name,email', 'group:id,name', 'section:id,name'])->latest('id')->get(),
             'payments' => \App\Models\Payment::query()->with(['user:id,name,email', 'enrollment:id,group_id', 'enrollment.group:id,name'])->latest('id')->limit(200)->get(),
+        ]);
+    }
+
+    public function telegram(): Response
+    {
+        $resolved = TelegramSettings::resolve();
+
+        return Inertia::render('Admin/Telegram', [
+            'settings' => [
+                'botToken' => $resolved['bot_token'],
+                'webhookSecret' => $resolved['webhook_secret'],
+                'webhookUrl' => TelegramSettings::webhookUrl(),
+                'botTokenSource' => $resolved['bot_token_source'],
+                'webhookSecretSource' => $resolved['webhook_secret_source'],
+            ],
+            'links' => AdminTelegramLink::query()
+                ->with('user:id,name,email,role')
+                ->latest('id')
+                ->get(),
+            'admins' => User::query()
+                ->where('role', 'admin')
+                ->orderBy('name')
+                ->get(['id', 'name', 'email', 'role']),
         ]);
     }
 }

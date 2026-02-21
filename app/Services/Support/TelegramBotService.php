@@ -5,6 +5,7 @@ namespace App\Services\Support;
 use App\Models\AdminTelegramLink;
 use App\Models\SupportConversation;
 use App\Models\SupportMessage;
+use App\Support\TelegramSettings;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 
@@ -15,7 +16,7 @@ class TelegramBotService
         SupportMessage $message,
         array $excludeTelegramUserIds = [],
     ): void {
-        $botToken = (string) config('services.telegram.bot_token');
+        $botToken = TelegramSettings::botToken();
         if ($botToken === '') {
             return;
         }
@@ -36,7 +37,7 @@ class TelegramBotService
 
     public function sendMessage(int $chatId, string $text): void
     {
-        $botToken = (string) config('services.telegram.bot_token');
+        $botToken = TelegramSettings::botToken();
         if ($botToken === '') {
             return;
         }
