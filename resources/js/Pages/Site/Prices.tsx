@@ -14,16 +14,26 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 
-type Tariff = {
+type GroupPrice = {
     id: number;
-    title: string;
-    amount: number;
-    period: string;
-    features?: string[];
+    section_id: number;
+    name: string;
+    level: string;
+    style?: string | null;
+    billing_amount_cents: number;
+    billing_period_days: number;
+    currency: string;
+};
+
+type SectionPrice = {
+    id: number;
+    name: string;
+    slug: string;
+    groups: GroupPrice[];
 };
 
 type Props = {
-    tariffs: Tariff[];
+    sections: SectionPrice[];
     enrollableGroups?: EnrollableGroup[];
     meta?: { title?: string; description?: string; canonical?: string };
 };
@@ -33,10 +43,9 @@ const formatMoney = (cents: number) => {
     return rub.toLocaleString('ru-RU');
 };
 
-export default function Prices({ tariffs, enrollableGroups = [], meta }: Props) {
+export default function Prices({ sections = [], enrollableGroups = [], meta }: Props) {
     const [enrollOpen, setEnrollOpen] = useState(false);
-    // The "recommended" tariff is the second one if available, otherwise the first
-    const recommendedIndex = tariffs.length >= 2 ? 1 : 0;
+    const [selectedGroup, setSelectedGroup] = useState<EnrollableGroup | null>(null);
 
     return (
         <SiteLayout meta={meta}>
@@ -64,88 +73,78 @@ export default function Prices({ tariffs, enrollableGroups = [], meta }: Props) 
                 </section>
             </Reveal>
 
-            {/* ─── Tariffs ─── */}
-            <Stagger className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                {tariffs.map((tariff, i) => {
-                    const isRecommended = i === recommendedIndex;
-                    return (
-                        <Card
-                            key={tariff.id}
-                            className={`group relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-lg ${isRecommended
-                                ? 'border-brand/40 shadow-md shadow-brand/10 hover:border-brand/60 hover:shadow-brand/15'
-                                : 'border-brand/10 hover:border-brand/25 hover:shadow-brand/10'
-                                }`}
-                        >
-                            {/* Accent bar */}
-                            <div
-                                className={`h-1 ${isRecommended
-                                    ? 'bg-gradient-to-r from-brand via-brand-dark to-brand'
-                                    : 'bg-gradient-to-r from-brand/40 to-brand/20'
-                                    }`}
-                            />
-                            {isRecommended && (
-                                <div className="absolute -right-8 top-6 rotate-45 bg-brand px-10 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
-                                    выбор №1
-                                </div>
-                            )}
+            {/* ─── Groups Pricing ─── */}
+            {sections.map((section) => {
+                if (!section.groups || section.groups.length === 0) return null;
 
-                            <CardContent className="space-y-5 p-6">
-                                <div>
-                                    <h3 className="font-title text-lg font-semibold">
-                                        {tariff.title}
-                                    </h3>
-                                    <p className="mt-1 text-xs text-muted-foreground">
-                                        {tariff.period}
-                                    </p>
-                                </div>
+                return (
+                    <div key={section.id} className="mt-12 first:mt-8">
+                        <h2 className="mb-6 font-title text-2xl font-bold">{section.name}</h2>
+                        <Stagger className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                            {section.groups.map((group) => {
+                                return (
+                                    <Card
+                                        key={group.id}
+                                        className="group relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-lg border-brand/10 hover:border-brand/25 hover:shadow-brand/10"
+                                    >
+                                        <div className="h-1 bg-gradient-to-r from-brand/40 to-brand/20" />
 
-                                <div className="flex items-baseline gap-1">
-                                    <span className="font-title text-4xl font-bold text-brand-dark">
-                                        {formatMoney(tariff.amount)}
-                                    </span>
-                                    <span className="text-sm text-muted-foreground">
-                                        ₽
-                                    </span>
-                                </div>
+                                        <CardContent className="space-y-5 p-6 flex flex-col h-full">
+                                            <div className="flex-1">
+                                                <h3 className="font-title text-lg font-semibold">
+                                                    {group.name}
+                                                </h3>
+                                                <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                                                    <Badge variant="muted" className="font-normal text-[10px] uppercase">
+                                                        {group.level || 'Любой уровень'}
+                                                    </Badge>
+                                                    {group.style && (
+                                                        <Badge variant="muted" className="font-normal text-[10px] bg-brand/5">
+                                                            {group.style}
+                                                        </Badge>
+                                                    )}
+                                                </div>
+                                            </div>
 
-                                {/* Features */}
-                                {tariff.features &&
-                                    tariff.features.length > 0 && (
-                                        <ul className="space-y-2">
-                                            {tariff.features.map(
-                                                (feature, fi) => (
-                                                    <li
-                                                        key={fi}
-                                                        className="flex items-start gap-2 text-sm"
-                                                    >
-                                                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
-                                                        <span>{feature}</span>
-                                                    </li>
-                                                ),
-                                            )}
-                                        </ul>
-                                    )}
+                                            <div>
+                                                <div className="flex items-baseline gap-1">
+                                                    <span className="font-title text-4xl font-bold text-brand-dark">
+                                                        {formatMoney(group.billing_amount_cents || 0)}
+                                                    </span>
+                                                    <span className="text-sm font-medium text-muted-foreground">
+                                                        {group.currency === 'KZT' ? '₸' : '₽'}
+                                                    </span>
+                                                    <span className="text-xs text-muted-foreground ml-1">
+                                                        / {group.billing_period_days} дней
+                                                    </span>
+                                                </div>
+                                            </div>
 
-                                <Button
-                                    className="w-full"
-                                    variant={
-                                        isRecommended ? 'default' : 'outline'
-                                    }
-                                    onClick={() => setEnrollOpen(true)}
-                                >
-                                    Записаться
-                                    <ArrowRight className="ml-2 h-4 w-4" />
-                                </Button>
-                            </CardContent>
-                        </Card>
-                    );
-                })}
-            </Stagger>
+                                            <Button
+                                                className="w-full mt-4"
+                                                variant="outline"
+                                                onClick={() => {
+                                                    const eGroup = enrollableGroups.find(g => g.id === group.id);
+                                                    if (eGroup) setSelectedGroup(eGroup);
+                                                    setEnrollOpen(true);
+                                                }}
+                                            >
+                                                Записаться
+                                                <ArrowRight className="ml-2 h-4 w-4" />
+                                            </Button>
+                                        </CardContent>
+                                    </Card>
+                                );
+                            })}
+                        </Stagger>
+                    </div>
+                );
+            })}
 
-            {tariffs.length === 0 && (
+            {sections.every(s => !s.groups || s.groups.length === 0) && (
                 <Card className="mt-8">
                     <CardContent className="py-12 text-center text-muted-foreground">
-                        Тарифы скоро будут опубликованы
+                        Цены на группы в разработке
                     </CardContent>
                 </Card>
             )}
@@ -202,8 +201,12 @@ export default function Prices({ tariffs, enrollableGroups = [], meta }: Props) 
 
             <EnrollModal
                 open={enrollOpen}
-                onOpenChange={setEnrollOpen}
+                onOpenChange={(v) => {
+                    setEnrollOpen(v);
+                    if (!v) setTimeout(() => setSelectedGroup(null), 300);
+                }}
                 groups={enrollableGroups}
+                preselectedGroupId={selectedGroup?.id}
             />
         </SiteLayout>
     );

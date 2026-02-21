@@ -23,7 +23,7 @@ type BlogPostItem = {
     slug: string;
     excerpt?: string | null;
     content: string;
-    featured_image?: string | null;
+    featured_image?: string | File | null;
     author?: string | null;
     published_date?: string | null;
     is_published: boolean;
@@ -100,7 +100,7 @@ export default function Blog({ posts = [], pageSettings = [] }: Props) {
         slug: '',
         excerpt: '',
         content: '',
-        featuredImage: '',
+        featuredImage: null as File | string | null,
         author: '',
         publishedDate: '',
         isPublished: false,
@@ -133,19 +133,22 @@ export default function Blog({ posts = [], pageSettings = [] }: Props) {
         setIsCreating(true);
 
         try {
+            const formData = new FormData();
+            formData.append('title', form.title);
+            if (form.slug) formData.append('slug', form.slug);
+            if (form.excerpt) formData.append('excerpt', form.excerpt);
+            formData.append('content', form.content);
+            if (form.featuredImage instanceof File) {
+                formData.append('featuredImage', form.featuredImage);
+            }
+            if (form.author) formData.append('author', form.author);
+            if (form.publishedDate) formData.append('publishedDate', toIsoDateTime(form.publishedDate) || '');
+            formData.append('isPublished', form.isPublished ? '1' : '0');
+            formData.append('sortOrder', String(form.sortOrder));
+
             const payload = await apiPost<{ ok: boolean; item: BlogPostItem }>(
                 '/api/v1/admin/blog-posts',
-                {
-                    title: form.title,
-                    slug: form.slug || null,
-                    excerpt: form.excerpt || null,
-                    content: form.content,
-                    featuredImage: form.featuredImage || null,
-                    author: form.author || null,
-                    publishedDate: toIsoDateTime(form.publishedDate),
-                    isPublished: form.isPublished,
-                    sortOrder: form.sortOrder,
-                },
+                formData,
             );
 
             setList((prev) => [normalizePost(payload.item), ...prev]);
@@ -173,19 +176,26 @@ export default function Blog({ posts = [], pageSettings = [] }: Props) {
         setSavingId(post.id);
 
         try {
+            const formData = new FormData();
+            formData.append('title', post.title);
+            if (post.slug) formData.append('slug', post.slug);
+            if (post.excerpt) formData.append('excerpt', post.excerpt);
+            formData.append('content', post.content);
+
+            if (post.featured_image instanceof File) {
+                formData.append('featuredImage', post.featured_image);
+            } else if (typeof post.featured_image === 'string') {
+                formData.append('featuredImage', post.featured_image);
+            }
+
+            if (post.author) formData.append('author', post.author);
+            if (post.published_date) formData.append('publishedDate', toIsoDateTime(post.published_date) || '');
+            formData.append('isPublished', post.is_published ? '1' : '0');
+            formData.append('sortOrder', String(post.sort_order ?? 0));
+
             const payload = await apiPatch<{ ok: boolean; item: BlogPostItem }>(
                 `/api/v1/admin/blog-posts/${post.id}`,
-                {
-                    title: post.title,
-                    slug: post.slug || null,
-                    excerpt: post.excerpt || null,
-                    content: post.content,
-                    featuredImage: post.featured_image || null,
-                    author: post.author || null,
-                    publishedDate: toIsoDateTime(post.published_date || ''),
-                    isPublished: post.is_published,
-                    sortOrder: post.sort_order ?? 0,
-                },
+                formData,
             );
 
             setList((prev) =>
@@ -359,17 +369,18 @@ export default function Blog({ posts = [], pageSettings = [] }: Props) {
                                 }
                             />
                         </div>
-                        <div className="space-y-1.5">
+                        <div className="space-y-1.5 md:col-span-2">
                             <label className="text-xs font-medium text-muted-foreground">Обложка</label>
                             <Input
-                                placeholder="Путь или URL"
-                                value={form.featuredImage}
-                                onChange={(event) =>
+                                type="file"
+                                accept="image/*"
+                                onChange={(event) => {
+                                    const file = event.target.files?.[0] || null;
                                     setForm((prev) => ({
                                         ...prev,
-                                        featuredImage: event.target.value,
-                                    }))
-                                }
+                                        featuredImage: file,
+                                    }));
+                                }}
                             />
                         </div>
                         <div className="space-y-1.5">
@@ -743,22 +754,30 @@ export default function Blog({ posts = [], pageSettings = [] }: Props) {
                                 <div className="space-y-1">
                                     <label className="text-xs text-muted-foreground">Обложка</label>
                                     <Input
-                                        value={post.featured_image || ''}
-                                        placeholder="Путь или URL"
-                                        onChange={(event) =>
-                                            setList((prev) =>
-                                                prev.map((row) =>
-                                                    row.id === post.id
-                                                        ? {
-                                                            ...row,
-                                                            featured_image:
-                                                                event.target.value,
-                                                        }
-                                                        : row,
-                                                ),
-                                            )
-                                        }
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={(event) => {
+                                            const file = event.target.files?.[0] || null;
+                                            if (file) {
+                                                setList((prev) =>
+                                                    prev.map((row) =>
+                                                        row.id === post.id
+                                                            ? {
+                                                                ...row,
+                                                                featured_image: file,
+                                                            }
+                                                            : row,
+                                                    ),
+                                                );
+                                            }
+                                        }}
                                     />
+                                    {typeof post.featured_image === 'string' && post.featured_image && (
+                                        <p className="text-xs text-muted-foreground truncate">Текущее: {post.featured_image}</p>
+                                    )}
+                                    {post.featured_image instanceof File && (
+                                        <p className="text-xs text-muted-foreground truncate">Новое: {post.featured_image.name}</p>
+                                    )}
                                 </div>
                                 <div className="space-y-1">
                                     <label className="text-xs text-muted-foreground">Автор</label>

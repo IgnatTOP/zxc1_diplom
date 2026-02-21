@@ -26,7 +26,7 @@ type SectionNewsItem = {
     slug: string;
     summary?: string | null;
     content: string;
-    cover_image?: string | null;
+    cover_image?: string | File | null;
     is_published: boolean;
     published_at?: string | null;
     section?: SectionOption;
@@ -39,7 +39,7 @@ type EditableSectionNewsItem = {
     slug: string;
     summary: string;
     content: string;
-    cover_image: string;
+    cover_image: string | File | null;
     is_published: boolean;
     published_at: string;
     section?: SectionOption;
@@ -120,7 +120,7 @@ export default function SectionNews({ sections = [], items = [] }: Props) {
         slug: '',
         summary: '',
         content: '',
-        coverImage: '',
+        coverImage: null as File | string | null,
         isPublished: false,
         publishedAt: '',
     });
@@ -163,24 +163,26 @@ export default function SectionNews({ sections = [], items = [] }: Props) {
         setIsCreating(true);
 
         try {
-            const createPayload: Record<string, unknown> = {
-                sectionId: form.sectionId,
-                title: form.title,
-                slug: form.slug,
-                summary: form.summary || null,
-                content: form.content,
-                coverImage: form.coverImage || null,
-                isPublished: form.isPublished,
-            };
+            const formData = new FormData();
+            formData.append('sectionId', String(form.sectionId));
+            formData.append('title', form.title);
+            formData.append('slug', form.slug);
+            if (form.summary) formData.append('summary', form.summary);
+            formData.append('content', form.content);
+            if (form.coverImage instanceof File) {
+                formData.append('coverImage', form.coverImage);
+            }
+            formData.append('isPublished', form.isPublished ? '1' : '0');
+
             const publishedAt = toIsoDateTime(form.publishedAt);
             if (publishedAt) {
-                createPayload.publishedAt = publishedAt;
+                formData.append('publishedAt', publishedAt);
             }
 
             const payload = await apiPost<{
                 ok: boolean;
                 item: SectionNewsItem;
-            }>('/api/v1/admin/section-news', createPayload);
+            }>('/api/v1/admin/section-news', formData);
 
             setList((prev) => [
                 normalizeItem(payload.item, defaultSectionId),
@@ -209,24 +211,30 @@ export default function SectionNews({ sections = [], items = [] }: Props) {
         setSavingId(item.id);
 
         try {
-            const updatePayload: Record<string, unknown> = {
-                sectionId: item.section_id,
-                title: item.title,
-                slug: item.slug,
-                summary: item.summary || null,
-                content: item.content,
-                coverImage: item.cover_image || null,
-                isPublished: item.is_published,
-            };
+            const formData = new FormData();
+            formData.append('sectionId', String(item.section_id));
+            formData.append('title', item.title);
+            formData.append('slug', item.slug);
+            if (item.summary) formData.append('summary', item.summary);
+            formData.append('content', item.content);
+
+            if (item.cover_image instanceof File) {
+                formData.append('coverImage', item.cover_image);
+            } else if (typeof item.cover_image === 'string') {
+                formData.append('coverImage', item.cover_image);
+            }
+
+            formData.append('isPublished', item.is_published ? '1' : '0');
+
             const publishedAt = toIsoDateTime(item.published_at);
             if (publishedAt) {
-                updatePayload.publishedAt = publishedAt;
+                formData.append('publishedAt', publishedAt);
             }
 
             const payload = await apiPatch<{
                 ok: boolean;
                 item: SectionNewsItem;
-            }>(`/api/v1/admin/section-news/${item.id}`, updatePayload);
+            }>(`/api/v1/admin/section-news/${item.id}`, formData);
 
             setList((prev) =>
                 prev.map((row) =>
@@ -348,14 +356,15 @@ export default function SectionNews({ sections = [], items = [] }: Props) {
                         <div className="space-y-1.5">
                             <label className="text-xs font-medium text-muted-foreground">Обложка</label>
                             <Input
-                                placeholder="Обложка (путь/URL)"
-                                value={form.coverImage}
-                                onChange={(event) =>
+                                type="file"
+                                accept="image/*"
+                                onChange={(event) => {
+                                    const file = event.target.files?.[0] || null;
                                     setForm((prev) => ({
                                         ...prev,
-                                        coverImage: event.target.value,
-                                    }))
-                                }
+                                        coverImage: file,
+                                    }));
+                                }}
                             />
                         </div>
                         <div className="space-y-1.5 md:col-span-2">
@@ -575,23 +584,30 @@ export default function SectionNews({ sections = [], items = [] }: Props) {
                                 <div className="space-y-1">
                                     <label className="text-xs text-muted-foreground">Обложка</label>
                                     <Input
-                                        value={item.cover_image}
-                                        placeholder="Обложка (путь/URL)"
-                                        onChange={(event) =>
-                                            setList((prev) =>
-                                                prev.map((row) =>
-                                                    row.id === item.id
-                                                        ? {
-                                                            ...row,
-                                                            cover_image:
-                                                                event.target
-                                                                    .value,
-                                                        }
-                                                        : row,
-                                                ),
-                                            )
-                                        }
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={(event) => {
+                                            const file = event.target.files?.[0] || null;
+                                            if (file) {
+                                                setList((prev) =>
+                                                    prev.map((row) =>
+                                                        row.id === item.id
+                                                            ? {
+                                                                ...row,
+                                                                cover_image: file,
+                                                            }
+                                                            : row,
+                                                    ),
+                                                );
+                                            }
+                                        }}
                                     />
+                                    {typeof item.cover_image === 'string' && item.cover_image && (
+                                        <p className="text-xs text-muted-foreground truncate">Текущее: {item.cover_image}</p>
+                                    )}
+                                    {item.cover_image instanceof File && (
+                                        <p className="text-xs text-muted-foreground truncate">Новое: {item.cover_image.name}</p>
+                                    )}
                                 </div>
                             </div>
                             <div className="space-y-1">

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Content;
 use App\Models\TeamMember;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class AboutController extends Controller
@@ -15,15 +16,20 @@ class AboutController extends Controller
         $payload = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'experience' => ['required', 'string', 'max:255'],
-            'photo' => ['nullable', 'string', 'max:255'],
+            'photo' => ['nullable', 'image', 'max:10240'],
             'sortOrder' => ['nullable', 'integer'],
             'isActive' => ['nullable', 'boolean'],
         ]);
 
+        $photoPath = null;
+        if ($request->hasFile('photo')) {
+            $photoPath = $request->file('photo')->store('uploads', 'public');
+        }
+
         $item = TeamMember::query()->create([
             'name' => $payload['name'],
             'experience' => $payload['experience'],
-            'photo' => $payload['photo'] ?? null,
+            'photo' => $photoPath,
             'sort_order' => $payload['sortOrder'] ?? 0,
             'is_active' => $payload['isActive'] ?? true,
         ]);
@@ -36,15 +42,23 @@ class AboutController extends Controller
         $payload = $request->validate([
             'name' => ['sometimes', 'string', 'max:255'],
             'experience' => ['sometimes', 'string', 'max:255'],
-            'photo' => ['nullable', 'string', 'max:255'],
+            'photo' => ['nullable', 'image', 'max:10240'],
             'sortOrder' => ['nullable', 'integer'],
             'isActive' => ['nullable', 'boolean'],
         ]);
 
+        $photoPath = $member->photo;
+        if ($request->hasFile('photo')) {
+            if ($photoPath) {
+                Storage::disk('public')->delete($photoPath);
+            }
+            $photoPath = $request->file('photo')->store('uploads', 'public');
+        }
+
         $member->update([
             'name' => $payload['name'] ?? $member->name,
             'experience' => $payload['experience'] ?? $member->experience,
-            'photo' => array_key_exists('photo', $payload) ? $payload['photo'] : $member->photo,
+            'photo' => array_key_exists('photo', $payload) ? $photoPath : $member->photo,
             'sort_order' => array_key_exists('sortOrder', $payload) ? $payload['sortOrder'] : $member->sort_order,
             'is_active' => array_key_exists('isActive', $payload) ? $payload['isActive'] : $member->is_active,
         ]);
@@ -54,6 +68,10 @@ class AboutController extends Controller
 
     public function destroyTeamMember(TeamMember $member)
     {
+        if ($member->photo) {
+            Storage::disk('public')->delete($member->photo);
+        }
+
         $member->delete();
 
         return response()->json(['ok' => true]);

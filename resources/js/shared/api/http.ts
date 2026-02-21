@@ -68,18 +68,37 @@ async function requestWithBody<T>(
     const xsrfCookie = readCookie('XSRF-TOKEN');
     const csrfToken = xsrfCookie || csrfMeta;
 
+    const isFormData = data instanceof FormData;
+    let finalMethod = method;
+    let finalData: BodyInit | null = null;
+
+    if (isFormData) {
+        if (method === 'PATCH') {
+            data.append('_method', 'PATCH');
+            finalMethod = 'POST';
+        }
+        finalData = data as unknown as BodyInit;
+    } else {
+        finalData = JSON.stringify(data);
+    }
+
+    const headers: Record<string, string> = {
+        Accept: 'application/json',
+        ...(csrfToken ? { 'X-CSRF-TOKEN': csrfToken } : {}),
+        ...(xsrfCookie ? { 'X-XSRF-TOKEN': xsrfCookie } : {}),
+        ...(init?.headers as Record<string, string> || {}),
+    };
+
+    if (!isFormData) {
+        headers['Content-Type'] = 'application/json';
+    }
+
     const response = await fetch(url, {
-        method,
+        method: finalMethod,
         credentials: 'same-origin',
         ...init,
-        headers: {
-            'Content-Type': 'application/json',
-            Accept: 'application/json',
-            ...(csrfToken ? { 'X-CSRF-TOKEN': csrfToken } : {}),
-            ...(xsrfCookie ? { 'X-XSRF-TOKEN': xsrfCookie } : {}),
-            ...(init?.headers || {}),
-        },
-        body: JSON.stringify(data),
+        headers,
+        body: finalData,
     });
 
     if (!response.ok) {

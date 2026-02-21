@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\SectionNews;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class SectionNewsController extends Controller
@@ -25,13 +26,18 @@ class SectionNewsController extends Controller
             'slug' => ['required', 'string', 'max:255', Rule::unique('section_news', 'slug')],
             'summary' => ['nullable', 'string'],
             'content' => ['required', 'string'],
-            'coverImage' => ['nullable', 'string', 'max:255'],
+            'coverImage' => ['nullable', 'image', 'max:10240'],
             'isPublished' => ['nullable', 'boolean'],
             'publishedAt' => ['nullable', 'date'],
         ]);
 
         /** @var \App\Models\User $user */
         $user = $request->user();
+
+        $coverImagePath = null;
+        if ($request->hasFile('coverImage')) {
+            $coverImagePath = $request->file('coverImage')->store('uploads', 'public');
+        }
 
         $item = SectionNews::query()->create([
             'section_id' => $payload['sectionId'],
@@ -40,7 +46,7 @@ class SectionNewsController extends Controller
             'slug' => $payload['slug'],
             'summary' => $payload['summary'] ?? null,
             'content' => $payload['content'],
-            'cover_image' => $payload['coverImage'] ?? null,
+            'cover_image' => $coverImagePath,
             'is_published' => $payload['isPublished'] ?? false,
             'published_at' => ($payload['isPublished'] ?? false)
                 ? ($payload['publishedAt'] ?? now())
@@ -58,7 +64,7 @@ class SectionNewsController extends Controller
             'slug' => ['sometimes', 'string', 'max:255', Rule::unique('section_news', 'slug')->ignore($item->id)],
             'summary' => ['nullable', 'string'],
             'content' => ['sometimes', 'string'],
-            'coverImage' => ['nullable', 'string', 'max:255'],
+            'coverImage' => ['nullable', 'image', 'max:10240'],
             'isPublished' => ['nullable', 'boolean'],
             'publishedAt' => ['nullable', 'date'],
         ]);
@@ -67,13 +73,21 @@ class SectionNewsController extends Controller
             ? (bool) $payload['isPublished']
             : $item->is_published;
 
+        $coverImagePath = $item->cover_image;
+        if ($request->hasFile('coverImage')) {
+            if ($coverImagePath) {
+                Storage::disk('public')->delete($coverImagePath);
+            }
+            $coverImagePath = $request->file('coverImage')->store('uploads', 'public');
+        }
+
         $item->update([
             'section_id' => $payload['sectionId'] ?? $item->section_id,
             'title' => $payload['title'] ?? $item->title,
             'slug' => $payload['slug'] ?? $item->slug,
             'summary' => array_key_exists('summary', $payload) ? $payload['summary'] : $item->summary,
             'content' => $payload['content'] ?? $item->content,
-            'cover_image' => array_key_exists('coverImage', $payload) ? $payload['coverImage'] : $item->cover_image,
+            'cover_image' => array_key_exists('coverImage', $payload) ? $coverImagePath : $item->cover_image,
             'is_published' => $nextIsPublished,
             'published_at' => array_key_exists('publishedAt', $payload)
                 ? $payload['publishedAt']
@@ -85,6 +99,9 @@ class SectionNewsController extends Controller
 
     public function destroy(SectionNews $item)
     {
+        if ($item->cover_image) {
+            Storage::disk('public')->delete($item->cover_image);
+        }
         $item->delete();
 
         return response()->json(['ok' => true]);

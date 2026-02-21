@@ -6,13 +6,14 @@ use App\Http\Controllers\Controller;
 use App\Models\Collage;
 use App\Models\Gallery;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class GalleryController extends Controller
 {
     public function storeItem(Request $request)
     {
         $payload = $request->validate([
-            'filename' => ['required', 'string', 'max:255'],
+            'filename' => ['required', 'image', 'max:10240'],
             'title' => ['nullable', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'altText' => ['nullable', 'string', 'max:255'],
@@ -20,8 +21,10 @@ class GalleryController extends Controller
             'isActive' => ['nullable', 'boolean'],
         ]);
 
+        $filenamePath = $request->file('filename')->store('uploads', 'public');
+
         $item = Gallery::query()->create([
-            'filename' => $payload['filename'],
+            'filename' => $filenamePath,
             'title' => $payload['title'] ?? null,
             'description' => $payload['description'] ?? null,
             'alt_text' => $payload['altText'] ?? null,
@@ -35,7 +38,7 @@ class GalleryController extends Controller
     public function updateItem(Request $request, Gallery $item)
     {
         $payload = $request->validate([
-            'filename' => ['sometimes', 'string', 'max:255'],
+            'filename' => ['nullable', 'image', 'max:10240'],
             'title' => ['nullable', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'altText' => ['nullable', 'string', 'max:255'],
@@ -43,8 +46,16 @@ class GalleryController extends Controller
             'isActive' => ['nullable', 'boolean'],
         ]);
 
+        $filenamePath = $item->filename;
+        if ($request->hasFile('filename')) {
+            if ($filenamePath) {
+                Storage::disk('public')->delete($filenamePath);
+            }
+            $filenamePath = $request->file('filename')->store('uploads', 'public');
+        }
+
         $item->update([
-            'filename' => $payload['filename'] ?? $item->filename,
+            'filename' => array_key_exists('filename', $payload) ? $filenamePath : $item->filename,
             'title' => array_key_exists('title', $payload) ? $payload['title'] : $item->title,
             'description' => array_key_exists('description', $payload) ? $payload['description'] : $item->description,
             'alt_text' => array_key_exists('altText', $payload) ? $payload['altText'] : $item->alt_text,
@@ -57,6 +68,9 @@ class GalleryController extends Controller
 
     public function destroyItem(Gallery $item)
     {
+        if ($item->filename) {
+            Storage::disk('public')->delete($item->filename);
+        }
         $item->delete();
 
         return response()->json(['ok' => true]);
@@ -66,17 +80,26 @@ class GalleryController extends Controller
     {
         $payload = $request->validate([
             'title' => ['required', 'string', 'max:255'],
-            'mainImage' => ['required', 'string', 'max:255'],
+            'mainImage' => ['required', 'image', 'max:10240'],
             'photos' => ['nullable', 'array'],
-            'photos.*' => ['string', 'max:255'],
+            'photos.*' => ['image', 'max:10240'],
             'photoCount' => ['nullable', 'integer', 'min:1', 'max:20'],
         ]);
 
+        $mainImagePath = $request->file('mainImage')->store('uploads', 'public');
+        
+        $photosPaths = [];
+        if ($request->hasFile('photos')) {
+            foreach ($request->file('photos') as $photoFile) {
+                $photosPaths[] = $photoFile->store('uploads', 'public');
+            }
+        }
+
         $item = Collage::query()->create([
             'title' => $payload['title'],
-            'main_image' => $payload['mainImage'],
-            'photos' => $payload['photos'] ?? null,
-            'photo_count' => $payload['photoCount'] ?? ($payload['photos'] ? count($payload['photos']) : 4),
+            'main_image' => $mainImagePath,
+            'photos' => !empty($photosPaths) ? $photosPaths : null,
+            'photo_count' => $payload['photoCount'] ?? (!empty($photosPaths) ? count($photosPaths) : 4),
         ]);
 
         return response()->json(['ok' => true, 'item' => $item], 201);
@@ -86,20 +109,39 @@ class GalleryController extends Controller
     {
         $payload = $request->validate([
             'title' => ['sometimes', 'string', 'max:255'],
-            'mainImage' => ['sometimes', 'string', 'max:255'],
+            'mainImage' => ['nullable', 'image', 'max:10240'],
             'photos' => ['nullable', 'array'],
-            'photos.*' => ['string', 'max:255'],
+            'photos.*' => ['nullable'], // can be string or file
             'photoCount' => ['nullable', 'integer', 'min:1', 'max:20'],
         ]);
 
-        $nextPhotos = array_key_exists('photos', $payload) ? $payload['photos'] : $collage->photos;
+        $mainImagePath = $collage->main_image;
+        if ($request->hasFile('mainImage')) {
+            if ($mainImagePath) {
+                Storage::disk('public')->delete($mainImagePath);
+            }
+            $mainImagePath = $request->file('mainImage')->store('uploads', 'public');
+        }
+
+        $nextPhotos = $collage->photos ?? [];
+        if ($request->has('photos')) {
+            $nextPhotos = [];
+            foreach ($request->all('photos')['photos'] as $idx => $photoItem) {
+                if (is_file($photoItem)) {
+                    $nextPhotos[] = $photoItem->store('uploads', 'public');
+                } elseif (is_string($photoItem)) {
+                    $nextPhotos[] = $photoItem;
+                }
+            }
+        }
+
         $nextPhotoCount = array_key_exists('photoCount', $payload)
             ? $payload['photoCount']
             : ($nextPhotos ? count($nextPhotos) : $collage->photo_count);
 
         $collage->update([
             'title' => $payload['title'] ?? $collage->title,
-            'main_image' => $payload['mainImage'] ?? $collage->main_image,
+            'main_image' => array_key_exists('mainImage', $payload) ? $mainImagePath : $collage->main_image,
             'photos' => $nextPhotos,
             'photo_count' => $nextPhotoCount ?? 4,
         ]);
@@ -109,6 +151,17 @@ class GalleryController extends Controller
 
     public function destroyCollage(Collage $collage)
     {
+        if ($collage->main_image) {
+            Storage::disk('public')->delete($collage->main_image);
+        }
+        if ($collage->photos) {
+            foreach ($collage->photos as $photo) {
+                if ($photo) {
+                    Storage::disk('public')->delete($photo);
+                }
+            }
+        }
+
         $collage->delete();
 
         return response()->json(['ok' => true]);

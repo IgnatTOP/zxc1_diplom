@@ -18,7 +18,7 @@ import { FormEvent, useMemo, useState } from 'react';
 
 type GalleryItem = {
     id: number;
-    filename: string;
+    filename: string | File | null;
     title?: string | null;
     description?: string | null;
     alt_text?: string | null;
@@ -29,8 +29,8 @@ type GalleryItem = {
 type CollageItem = {
     id: number;
     title: string;
-    main_image: string;
-    photos?: string[] | null;
+    main_image: string | File | null;
+    photos?: (string | File)[] | null;
     photo_count?: number;
 };
 
@@ -64,18 +64,29 @@ export default function Gallery({ items = [], collages = [] }: Props) {
         text: string;
     } | null>(null);
 
-    const [itemForm, setItemForm] = useState({
-        filename: '',
+    const [itemForm, setItemForm] = useState<{
+        filename: File | null;
+        title: string;
+        description: string;
+        altText: string;
+        sortOrder: number;
+        isActive: boolean;
+    }>({
+        filename: null,
         title: '',
         description: '',
         altText: '',
         sortOrder: galleryItems.length + 1,
         isActive: true,
     });
-    const [collageForm, setCollageForm] = useState({
+    const [collageForm, setCollageForm] = useState<{
+        title: string;
+        mainImage: File | null;
+        photos: File[];
+    }>({
         title: '',
-        mainImage: '',
-        photos: '',
+        mainImage: null,
+        photos: [],
     });
 
     const activeGalleryCount = useMemo(
@@ -88,21 +99,24 @@ export default function Gallery({ items = [], collages = [] }: Props) {
         setNotice(null);
 
         try {
+            const formData = new FormData();
+            if (itemForm.filename instanceof File) {
+                formData.append('filename', itemForm.filename);
+            }
+            formData.append('title', itemForm.title);
+            formData.append('description', itemForm.description);
+            formData.append('altText', itemForm.altText);
+            formData.append('sortOrder', String(itemForm.sortOrder));
+            formData.append('isActive', itemForm.isActive ? '1' : '0');
+
             const payload = await apiPost<{ ok: boolean; item: GalleryItem }>(
                 '/api/v1/admin/gallery/items',
-                {
-                    filename: itemForm.filename,
-                    title: itemForm.title || null,
-                    description: itemForm.description || null,
-                    altText: itemForm.altText || null,
-                    sortOrder: itemForm.sortOrder,
-                    isActive: itemForm.isActive,
-                },
+                formData,
             );
 
             setGalleryItems((prev) => [...prev, payload.item]);
             setItemForm({
-                filename: '',
+                filename: null,
                 title: '',
                 description: '',
                 altText: '',
@@ -120,16 +134,21 @@ export default function Gallery({ items = [], collages = [] }: Props) {
         setSavingId(`item-${item.id}`);
 
         try {
+            const formData = new FormData();
+            if (item.filename instanceof File) {
+                formData.append('filename', item.filename);
+            } else if (typeof item.filename === 'string') {
+                formData.append('filename', item.filename);
+            }
+            formData.append('title', item.title || '');
+            formData.append('description', item.description || '');
+            formData.append('altText', item.alt_text || '');
+            formData.append('sortOrder', String(item.sort_order ?? 0));
+            formData.append('isActive', (item.is_active ?? true) ? '1' : '0');
+
             const payload = await apiPatch<{ ok: boolean; item: GalleryItem }>(
                 `/api/v1/admin/gallery/items/${item.id}`,
-                {
-                    filename: item.filename,
-                    title: item.title || null,
-                    description: item.description || null,
-                    altText: item.alt_text || null,
-                    sortOrder: item.sort_order ?? 0,
-                    isActive: item.is_active ?? true,
-                },
+                formData,
             );
 
             setGalleryItems((prev) =>
@@ -167,20 +186,23 @@ export default function Gallery({ items = [], collages = [] }: Props) {
         event.preventDefault();
         setNotice(null);
 
-        const photos = collageForm.photos
-            .split('\n')
-            .map((item) => item.trim())
-            .filter(Boolean);
-
         try {
+            const formData = new FormData();
+            formData.append('title', collageForm.title);
+            if (collageForm.mainImage instanceof File) {
+                formData.append('mainImage', collageForm.mainImage);
+            }
+
+            collageForm.photos.forEach((photo, index) => {
+                if (photo instanceof File) {
+                    formData.append(`photos[${index}]`, photo);
+                }
+            });
+            formData.append('photoCount', String(collageForm.photos.length || 4));
+
             const payload = await apiPost<{ ok: boolean; item: CollageItem }>(
                 '/api/v1/admin/gallery/collages',
-                {
-                    title: collageForm.title,
-                    mainImage: collageForm.mainImage,
-                    photos,
-                    photoCount: photos.length || 4,
-                },
+                formData,
             );
 
             setCollageItems((prev) => [
@@ -189,8 +211,8 @@ export default function Gallery({ items = [], collages = [] }: Props) {
             ]);
             setCollageForm({
                 title: '',
-                mainImage: '',
-                photos: '',
+                mainImage: null,
+                photos: [],
             });
             setNotice({ tone: 'success', text: 'Коллаж добавлен.' });
         } catch (error) {
@@ -203,14 +225,27 @@ export default function Gallery({ items = [], collages = [] }: Props) {
         setSavingId(`collage-${item.id}`);
 
         try {
+            const formData = new FormData();
+            formData.append('title', item.title);
+            if (item.main_image instanceof File) {
+                formData.append('mainImage', item.main_image);
+            } else if (typeof item.main_image === 'string') {
+                formData.append('mainImage', item.main_image);
+            }
+            if (item.photos && Array.isArray(item.photos)) {
+                item.photos.forEach((photo, index) => {
+                    if (photo instanceof File) {
+                        formData.append(`photos[${index}]`, photo);
+                    } else if (typeof photo === 'string') {
+                        formData.append(`photos[${index}]`, photo);
+                    }
+                });
+            }
+            formData.append('photoCount', String(item.photo_count ?? item.photos?.length ?? 0));
+
             const payload = await apiPatch<{ ok: boolean; item: CollageItem }>(
                 `/api/v1/admin/gallery/collages/${item.id}`,
-                {
-                    title: item.title,
-                    mainImage: item.main_image,
-                    photos: item.photos || [],
-                    photoCount: item.photo_count ?? item.photos?.length ?? 0,
-                },
+                formData,
             );
 
             setCollageItems((prev) =>
@@ -309,14 +344,15 @@ export default function Gallery({ items = [], collages = [] }: Props) {
                             <div className="space-y-1.5">
                                 <label className="text-xs font-medium text-muted-foreground">Путь/URL изображения *</label>
                                 <Input
-                                    placeholder="Путь/URL изображения"
-                                    value={itemForm.filename}
-                                    onChange={(event) =>
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={(event) => {
+                                        const file = event.target.files?.[0] || null;
                                         setItemForm((prev) => ({
                                             ...prev,
-                                            filename: event.target.value,
-                                        }))
-                                    }
+                                            filename: file,
+                                        }));
+                                    }}
                                     required
                                 />
                             </div>
@@ -421,30 +457,40 @@ export default function Gallery({ items = [], collages = [] }: Props) {
                                     </div>
                                     <img
                                         src={
-                                            mediaUrl(item.filename) || undefined
+                                            item.filename instanceof File
+                                                ? URL.createObjectURL(item.filename)
+                                                : mediaUrl(item.filename) || undefined
                                         }
                                         alt={item.title || `photo-${item.id}`}
                                         className="h-40 w-full rounded-lg object-cover"
                                     />
                                     <div className="space-y-1">
-                                        <label className="text-xs text-muted-foreground">Файл</label>
+                                        <label className="text-xs text-muted-foreground">Изображение *</label>
                                         <Input
-                                            value={item.filename}
-                                            onChange={(event) =>
-                                                setGalleryItems((prev) =>
-                                                    prev.map((row) =>
-                                                        row.id === item.id
-                                                            ? {
-                                                                ...row,
-                                                                filename:
-                                                                    event.target
-                                                                        .value,
-                                                            }
-                                                            : row,
-                                                    ),
-                                                )
-                                            }
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={(event) => {
+                                                const file = event.target.files?.[0] || null;
+                                                if (file) {
+                                                    setGalleryItems((prev) =>
+                                                        prev.map((row) =>
+                                                            row.id === item.id
+                                                                ? {
+                                                                    ...row,
+                                                                    filename: file,
+                                                                }
+                                                                : row,
+                                                        ),
+                                                    );
+                                                }
+                                            }}
                                         />
+                                        {typeof item.filename === 'string' && item.filename && (
+                                            <p className="text-xs text-muted-foreground truncate">Текущее: {item.filename}</p>
+                                        )}
+                                        {item.filename instanceof File && (
+                                            <p className="text-xs text-muted-foreground truncate">Новое: {item.filename.name}</p>
+                                        )}
                                     </div>
                                     <div className="space-y-1">
                                         <label className="text-xs text-muted-foreground">Заголовок</label>
@@ -622,30 +668,37 @@ export default function Gallery({ items = [], collages = [] }: Props) {
                             <div className="space-y-1.5">
                                 <label className="text-xs font-medium text-muted-foreground">Главное изображение *</label>
                                 <Input
-                                    placeholder="Главное изображение (путь/URL)"
-                                    value={collageForm.mainImage}
-                                    onChange={(event) =>
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={(event) => {
+                                        const file = event.target.files?.[0] || null;
                                         setCollageForm((prev) => ({
                                             ...prev,
-                                            mainImage: event.target.value,
-                                        }))
-                                    }
+                                            mainImage: file,
+                                        }));
+                                    }}
                                     required
                                 />
                             </div>
                             <div className="space-y-1.5">
-                                <label className="text-xs font-medium text-muted-foreground">Фото (каждый путь с новой строки)</label>
-                                <Textarea
-                                    rows={4}
-                                    placeholder="Фото построчно (каждый путь с новой строки)"
-                                    value={collageForm.photos}
-                                    onChange={(event) =>
+                                <label className="text-xs font-medium text-muted-foreground">Доп. фото</label>
+                                <Input
+                                    type="file"
+                                    accept="image/*"
+                                    multiple
+                                    onChange={(event) => {
+                                        const files = Array.from(event.target.files || []);
                                         setCollageForm((prev) => ({
                                             ...prev,
-                                            photos: event.target.value,
-                                        }))
-                                    }
+                                            photos: files,
+                                        }));
+                                    }}
                                 />
+                                {collageForm.photos.length > 0 && (
+                                    <p className="text-xs text-muted-foreground truncate">
+                                        Выбрано файлов: {collageForm.photos.length}
+                                    </p>
+                                )}
                             </div>
                             <Button type="submit">
                                 <Plus className="mr-1 h-4 w-4" />
@@ -669,8 +722,9 @@ export default function Gallery({ items = [], collages = [] }: Props) {
                                     </div>
                                     <img
                                         src={
-                                            mediaUrl(item.main_image) ||
-                                            undefined
+                                            item.main_image instanceof File
+                                                ? URL.createObjectURL(item.main_image)
+                                                : mediaUrl(item.main_image) || undefined
                                         }
                                         alt={item.title}
                                         className="h-40 w-full rounded-lg object-cover"
@@ -695,52 +749,63 @@ export default function Gallery({ items = [], collages = [] }: Props) {
                                         />
                                     </div>
                                     <div className="space-y-1">
-                                        <label className="text-xs text-muted-foreground">Главное изображение</label>
+                                        <label className="text-xs text-muted-foreground">Главное фото *</label>
                                         <Input
-                                            value={item.main_image}
-                                            onChange={(event) =>
-                                                setCollageItems((prev) =>
-                                                    prev.map((row) =>
-                                                        row.id === item.id
-                                                            ? {
-                                                                ...row,
-                                                                main_image:
-                                                                    event.target
-                                                                        .value,
-                                                            }
-                                                            : row,
-                                                    ),
-                                                )
-                                            }
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={(event) => {
+                                                const file = event.target.files?.[0] || null;
+                                                if (file) {
+                                                    setCollageItems((prev) =>
+                                                        prev.map((row) =>
+                                                            row.id === item.id
+                                                                ? {
+                                                                    ...row,
+                                                                    main_image: file,
+                                                                }
+                                                                : row,
+                                                        ),
+                                                    );
+                                                }
+                                            }}
                                         />
+                                        {typeof item.main_image === 'string' && item.main_image && (
+                                            <p className="text-xs text-muted-foreground truncate">Текущее: {item.main_image}</p>
+                                        )}
+                                        {item.main_image instanceof File && (
+                                            <p className="text-xs text-muted-foreground truncate">Новое: {item.main_image.name}</p>
+                                        )}
                                     </div>
                                     <div className="space-y-1">
-                                        <label className="text-xs text-muted-foreground">Фото (построчно)</label>
-                                        <Textarea
-                                            rows={4}
-                                            value={(item.photos || []).join('\n')}
-                                            placeholder="Фото построчно"
-                                            onChange={(event) =>
+                                        <label className="text-xs text-muted-foreground">Доп. фото</label>
+                                        <Input
+                                            type="file"
+                                            accept="image/*"
+                                            multiple
+                                            onChange={(event) => {
+                                                const files = Array.from(event.target.files || []);
                                                 setCollageItems((prev) =>
                                                     prev.map((row) =>
                                                         row.id === item.id
                                                             ? {
                                                                 ...row,
-                                                                photos: event.target.value
-                                                                    .split('\n')
-                                                                    .map(
-                                                                        (photo) =>
-                                                                            photo.trim(),
-                                                                    )
-                                                                    .filter(
-                                                                        Boolean,
-                                                                    ),
+                                                                photos: files,
                                                             }
                                                             : row,
                                                     ),
-                                                )
-                                            }
+                                                );
+                                            }}
                                         />
+                                        {item.photos && item.photos.length > 0 && typeof item.photos[0] === 'string' && (
+                                            <p className="text-xs text-muted-foreground truncate">
+                                                Текущих фото: {item.photos.length}
+                                            </p>
+                                        )}
+                                        {item.photos && item.photos.length > 0 && item.photos[0] instanceof File && (
+                                            <p className="text-xs text-muted-foreground truncate">
+                                                Новых файлов: {item.photos.length}
+                                            </p>
+                                        )}
                                     </div>
                                     <div className="space-y-1">
                                         <label className="text-xs text-muted-foreground">Кол-во фото</label>

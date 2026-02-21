@@ -19,7 +19,7 @@ type TeamMember = {
     id: number;
     name: string;
     experience: string;
-    photo?: string | null;
+    photo?: string | null | File;
     sort_order?: number;
     is_active?: boolean;
 };
@@ -57,7 +57,7 @@ export default function About({ team = [], content = [] }: Props) {
     const [teamForm, setTeamForm] = useState({
         name: '',
         experience: '',
-        photo: '',
+        photo: null as File | string | null,
         sortOrder: team.length + 1,
         isActive: true,
     });
@@ -78,22 +78,25 @@ export default function About({ team = [], content = [] }: Props) {
         setNotice(null);
 
         try {
+            const formData = new FormData();
+            formData.append('name', teamForm.name);
+            formData.append('experience', teamForm.experience);
+            if (teamForm.photo instanceof File) {
+                formData.append('photo', teamForm.photo);
+            }
+            formData.append('sortOrder', String(teamForm.sortOrder));
+            formData.append('isActive', teamForm.isActive ? '1' : '0');
+
             const payload = await apiPost<{ ok: boolean; item: TeamMember }>(
                 '/api/v1/admin/about/team-members',
-                {
-                    name: teamForm.name,
-                    experience: teamForm.experience,
-                    photo: teamForm.photo || null,
-                    sortOrder: teamForm.sortOrder,
-                    isActive: teamForm.isActive,
-                },
+                formData,
             );
 
             setTeamList((prev) => [...prev, payload.item]);
             setTeamForm({
                 name: '',
                 experience: '',
-                photo: '',
+                photo: null,
                 sortOrder: teamList.length + 2,
                 isActive: true,
             });
@@ -108,15 +111,18 @@ export default function About({ team = [], content = [] }: Props) {
         setSavingTeamId(item.id);
 
         try {
+            const formData = new FormData();
+            formData.append('name', item.name);
+            formData.append('experience', item.experience);
+            if (item.photo instanceof File) {
+                formData.append('photo', item.photo);
+            }
+            formData.append('sortOrder', String(item.sort_order ?? 0));
+            formData.append('isActive', (item.is_active ?? true) ? '1' : '0');
+
             const payload = await apiPatch<{ ok: boolean; item: TeamMember }>(
                 `/api/v1/admin/about/team-members/${item.id}`,
-                {
-                    name: item.name,
-                    experience: item.experience,
-                    photo: item.photo || null,
-                    sortOrder: item.sort_order ?? 0,
-                    isActive: item.is_active ?? true,
-                },
+                formData,
             );
 
             setTeamList((prev) =>
@@ -316,14 +322,15 @@ export default function About({ team = [], content = [] }: Props) {
                             <div className="space-y-1.5">
                                 <label className="text-xs font-medium text-muted-foreground">Фото</label>
                                 <Input
-                                    placeholder="Фото (путь/URL)"
-                                    value={teamForm.photo}
-                                    onChange={(event) =>
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={(event) => {
+                                        const file = event.target.files?.[0] || null;
                                         setTeamForm((prev) => ({
                                             ...prev,
-                                            photo: event.target.value,
-                                        }))
-                                    }
+                                            photo: file,
+                                        }));
+                                    }}
                                 />
                             </div>
                             <div className="grid gap-3 sm:grid-cols-2">
@@ -429,22 +436,30 @@ export default function About({ team = [], content = [] }: Props) {
                                     <div className="space-y-1">
                                         <label className="text-xs text-muted-foreground">Фото</label>
                                         <Input
-                                            value={item.photo || ''}
-                                            placeholder="Фото (путь/URL)"
-                                            onChange={(event) =>
-                                                setTeamList((prev) =>
-                                                    prev.map((row) =>
-                                                        row.id === item.id
-                                                            ? {
-                                                                ...row,
-                                                                photo: event
-                                                                    .target.value,
-                                                            }
-                                                            : row,
-                                                    ),
-                                                )
-                                            }
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={(event) => {
+                                                const file = event.target.files?.[0] || null;
+                                                if (file) {
+                                                    setTeamList((prev) =>
+                                                        prev.map((row) =>
+                                                            row.id === item.id
+                                                                ? {
+                                                                    ...row,
+                                                                    photo: file,
+                                                                }
+                                                                : row,
+                                                        ),
+                                                    );
+                                                }
+                                            }}
                                         />
+                                        {typeof item.photo === 'string' && item.photo && (
+                                            <p className="text-xs text-muted-foreground truncate">Текущее: {item.photo}</p>
+                                        )}
+                                        {item.photo instanceof File && (
+                                            <p className="text-xs text-muted-foreground truncate">Новое: {item.photo.name}</p>
+                                        )}
                                     </div>
                                     <div className="grid gap-3 sm:grid-cols-2">
                                         <div className="space-y-1">

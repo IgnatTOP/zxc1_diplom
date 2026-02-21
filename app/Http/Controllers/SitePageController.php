@@ -165,11 +165,16 @@ class SitePageController extends Controller
     public function prices(): Response
     {
         return Inertia::render('Site/Prices', [
-            'tariffs' => [
-                ['id' => 1, 'title' => 'Разовое', 'amount' => 900, 'period' => '1 занятие'],
-                ['id' => 2, 'title' => 'Абонемент 8', 'amount' => 5200, 'period' => '30 дней'],
-                ['id' => 3, 'title' => 'Безлимит', 'amount' => 6900, 'period' => '30 дней'],
-            ],
+            'sections' => Section::query()
+                ->where('is_active', true)
+                ->with([
+                    'groups' => fn ($query) => $query
+                        ->where('is_active', true)
+                        ->select(['id', 'section_id', 'name', 'level', 'style', 'billing_amount_cents', 'billing_period_days', 'currency'])
+                        ->orderBy('name'),
+                ])
+                ->orderBy('sort_order')
+                ->get(),
             'enrollableGroups' => $this->getEnrollableGroups(),
             'meta' => [
                 'title' => 'Цены — DanceWave',
